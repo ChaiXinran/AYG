@@ -1,0 +1,122 @@
+export const events = [
+  {
+    id: 1,
+    title: 'RENT · 北京场',
+    category: '音乐剧',
+    year: 2026,
+    city: '北京',
+    venue: '天桥艺术中心',
+    date: '2026-03-21',
+    lon: 116.4074,
+    lat: 39.9042,
+    description: '这里以后可以接入剧目、演员、海报、用户照片和视频。'
+  },
+  {
+    id: 2,
+    title: '法语音乐剧特别场',
+    category: '音乐剧',
+    year: 2026,
+    city: '上海',
+    venue: '上海文化广场',
+    date: '2026-05-16',
+    lon: 121.4737,
+    lat: 31.2304,
+    description: '同一剧目可以继续关联多个城市和场次。'
+  },
+  {
+    id: 3,
+    title: '年度音乐盛典',
+    category: '晚会',
+    year: 2025,
+    city: '广州',
+    venue: '广州体育馆',
+    date: '2025-12-31',
+    lon: 113.2644,
+    lat: 23.1291,
+    description: '晚会类活动用独立颜色显示。'
+  },
+  {
+    id: 4,
+    title: '音乐旅行综艺录制',
+    category: '综艺',
+    year: 2025,
+    city: '长沙',
+    venue: '节目演播中心',
+    date: '2025-08-09',
+    lon: 112.9388,
+    lat: 28.2282,
+    description: '综艺节点可进一步记录录制时间和播出时间。'
+  },
+  {
+    id: 5,
+    title: 'West End Musical Night',
+    category: '音乐剧',
+    year: 2024,
+    city: '伦敦',
+    venue: 'West End',
+    date: '2024-09-12',
+    lon: -0.1276,
+    lat: 51.5072,
+    description: '海外活动会随着地球旋转自然进入视野。'
+  },
+  {
+    id: 6,
+    title: 'Broadway Special',
+    category: '音乐剧',
+    year: 2026,
+    city: '纽约',
+    venue: 'Broadway',
+    date: '2026-06-01',
+    lon: -74.006,
+    lat: 40.7128,
+    description: '后续可以继续建立国家、城市、剧院和剧目索引。'
+  },
+  {
+    id: 7,
+    title: 'Paris Summer Gala',
+    category: '晚会',
+    year: 2025,
+    city: '巴黎',
+    venue: 'Paris',
+    date: '2025-07-18',
+    lon: 2.3522,
+    lat: 48.8566,
+    description: '缩放后节点会自动从聚合状态展开。'
+  },
+  {
+    id: 8,
+    title: '东京音乐节目现场',
+    category: '综艺',
+    year: 2026,
+    city: '东京',
+    venue: 'Tokyo Studio',
+    date: '2026-04-11',
+    lon: 139.6917,
+    lat: 35.6895,
+    description: '正式版可以切换全站活动地图和个人足迹地图。'
+  },
+  {
+    id: 9,
+    title: '北京音乐剧加演场',
+    category: '音乐剧',
+    year: 2026,
+    city: '北京',
+    venue: '保利剧院',
+    date: '2026-04-09',
+    lon: 116.429,
+    lat: 39.933,
+    description: '与附近活动一起用于测试节点聚合。'
+  },
+  {
+    id: 10,
+    title: '上海综艺特别录制',
+    category: '综艺',
+    year: 2026,
+    city: '上海',
+    venue: '上海演播中心',
+    date: '2026-06-03',
+    lon: 121.49,
+    lat: 31.22,
+    description: '放大后会从上海聚合节点中展开。'
+  }
+];

@@ -1,0 +1,610 @@
+import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7.9.0/+esm';
+import { feature } from 'https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/+esm';
+import world from 'https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json/+esm';
+import { clusterProjectedEvents } from './clustering.js';
+
+const CATEGORY_COLORS = {
+  音乐剧: '#ff5d8f',
+  综艺: '#42c9e8',
+  晚会: '#f5bd4f'
+};
+
+export class EventGlobe {
+  constructor({ svgElement, events, cityLights, provinceFeatures, onEventSelect, onClusterSelect, onChinaClick }) {
+    this.svg = d3.select(svgElement);
+    this.events = events;
+    this.cityLights = cityLights;
+    this.provinceFeatures = provinceFeatures || [];
+    this._hasProvinces = this.provinceFeatures.length > 0;
+    this.filteredEvents = [...events];
+    this.onEventSelect = onEventSelect;
+    this.onClusterSelect = onClusterSelect;
+    this.onChinaClick = onChinaClick;
+
+    this.width = 900;
+    this.height = 700;
+    this.baseScale = 290;
+
+    this.projection = d3
+      .geoOrthographic()
+      .translate([this.width / 2, this.height / 2])
+      .scale(this.baseScale)
+      .clipAngle(90)
+      .precision(0.4)
+      .rotate([-112, -28, 0]);
+
+    this.path = d3.geoPath(this.projection);
+    this.countries = feature(world, world.objects.countries);
+    this.graticule = d3.geoGraticule10();
+
+    this.autoRotate = true;
+    this.dragging = false;
+    this.showNight = true;
+    this.showLights = true;
+    this.selectedEventId = null;
+    this._expandedClusterId = null;
+    this.lastFrame = performance.now();
+    this.pulsePhase = 0;
+
+    this.build();
+    this.bindInteractions();
+    this.render();
+    this.startAnimation();
+  }
+
+  build() {
+    this.svg.attr('viewBox', `0 0 ${this.width} ${this.height}`);
+
+    const defs = this.svg.append('defs');
+
+    const spaceGradient = defs
+      .append('radialGradient')
+      .attr('id', 'spaceGradient')
+      .attr('cx', '45%')
+      .attr('cy', '40%');
+
+    spaceGradient.append('stop').attr('offset', '0%').attr('stop-color', '#0d2037');
+    spaceGradient.append('stop').attr('offset', '55%').attr('stop-color', '#071423');
+    spaceGradient.append('stop').attr('offset', '100%').attr('stop-color', '#020711');
+
+    const oceanGradient = defs
+      .append('radialGradient')
+      .attr('id', 'oceanGradient')
+      .attr('cx', '34%')
+      .attr('cy', '28%');
+
+    oceanGradient.append('stop').attr('offset', '0%').attr('stop-color', '#174f75');
+    oceanGradient.append('stop').attr('offset', '45%').attr('stop-color', '#0b3556');
+    oceanGradient.append('stop').attr('offset', '80%').attr('stop-color', '#08263f');
+    oceanGradient.append('stop').attr('offset', '100%').attr('stop-color', '#05192c');
+
+    const atmosphereGradient = defs
+      .append('radialGradient')
+      .attr('id', 'atmosphereGradient');
+
+    atmosphereGradient.append('stop').attr('offset', '72%').attr('stop-color', 'rgba(0,0,0,0)');
+    atmosphereGradient.append('stop').attr('offset', '84%').attr('stop-color', 'rgba(81,187,255,0.10)');
+    atmosphereGradient.append('stop').attr('offset', '92%').attr('stop-color', 'rgba(79,184,255,0.30)');
+    atmosphereGradient.append('stop').attr('offset', '100%').attr('stop-color', 'rgba(33,117,181,0)');
+
+    const cityGlow = defs
+      .append('filter')
+      .attr('id', 'cityGlow')
+      .attr('x', '-300%')
+      .attr('y', '-300%')
+      .attr('width', '700%')
+      .attr('height', '700%');
+
+    cityGlow.append('feGaussianBlur').attr('stdDeviation', 2.4).attr('result', 'blur');
+    const cityMerge = cityGlow.append('feMerge');
+    cityMerge.append('feMergeNode').attr('in', 'blur');
+    cityMerge.append('feMergeNode').attr('in', 'SourceGraphic');
+
+    const markerGlow = defs
+      .append('filter')
+      .attr('id', 'markerGlow')
+      .attr('x', '-250%')
+      .attr('y', '-250%')
+      .attr('width', '600%')
+      .attr('height', '600%');
+
+    markerGlow.append('feGaussianBlur').attr('stdDeviation', 3.4).attr('result', 'blur');
+    const markerMerge = markerGlow.append('feMerge');
+    markerMerge.append('feMergeNode').attr('in', 'blur');
+    markerMerge.append('feMergeNode').attr('in', 'SourceGraphic');
+
+    this.svg
+      .append('rect')
+      .attr('width', this.width)
+      .attr('height', this.height)
+      .attr('fill', 'url(#spaceGradient)');
+
+    this.buildStars();
+
+    this.svg
+      .append('circle')
+      .attr('class', 'atmosphere')
+      .attr('cx', this.width / 2)
+      .attr('cy', this.height / 2)
+      .attr('r', this.baseScale + 34)
+      .attr('fill', 'url(#atmosphereGradient)')
+      .attr('pointer-events', 'none');
+
+    this.sphereLayer = this.svg.append('g').attr('class', 'sphere-layer');
+    this.landLayer = this.svg.append('g').attr('class', 'land-layer');
+    this.chinaHighlightLayer = this.svg.append('g').attr('class', 'china-highlight-layer');
+    this.nightLayer = this.svg.append('g').attr('class', 'night-layer');
+    this.cityLayer = this.svg.append('g').attr('class', 'city-light-layer');
+    this.provinceLayer = this.svg.append('g').attr('class', 'province-layer');
+    this.pulseLayer = this.svg.append('g').attr('class', 'pulse-layer');
+    this.markerLayer = this.svg.append('g').attr('class', 'marker-layer');
+
+    this.sphereLayer
+      .append('path')
+      .datum({ type: 'Sphere' })
+      .attr('class', 'ocean');
+
+    this.landLayer
+      .append('path')
+      .datum(this.graticule)
+      .attr('class', 'graticule');
+
+    this.landLayer
+      .selectAll('path.country')
+      .data(this.countries.features)
+      .join('path')
+      .attr('class', 'country')
+      .attr('fill', (country) => this.landColor(country));
+
+    // 中国高亮层：hover 整块变亮，点击切换平面地图
+    if (this.onChinaClick) {
+      const chinaFeature = this.countries.features.find((f) => f.id === '156');
+      if (chinaFeature) {
+        this.chinaHighlight = this.chinaHighlightLayer
+          .append('path')
+          .datum(chinaFeature)
+          .attr('class', 'china-hover-area')
+          .style('cursor', 'pointer')
+          .on('click', (event) => {
+            event.stopPropagation();
+            this.onChinaClick();
+          });
+      }
+    }
+
+    this.nightPath = this.nightLayer
+      .append('path')
+      .attr('class', 'night-shade');
+
+    this.terminatorPath = this.nightLayer
+      .append('path')
+      .attr('class', 'terminator-line');
+  }
+
+  buildStars() {
+    const pseudoRandom = (seed) => {
+      const x = Math.sin(seed * 999.91) * 43758.5453123;
+      return x - Math.floor(x);
+    };
+
+    const stars = d3.range(180).map((i) => ({
+      x: pseudoRandom(i + 1) * this.width,
+      y: pseudoRandom(i + 1000) * this.height,
+      radius: 0.35 + pseudoRandom(i + 2000) * 1.25,
+      opacity: 0.16 + pseudoRandom(i + 3000) * 0.62
+    }));
+
+    this.svg
+      .append('g')
+      .attr('class', 'star-layer')
+      .selectAll('circle')
+      .data(stars)
+      .join('circle')
+      .attr('cx', (d) => d.x)
+      .attr('cy', (d) => d.y)
+      .attr('r', (d) => d.radius)
+      .attr('fill', '#e7f5ff')
+      .attr('opacity', (d) => d.opacity);
+  }
+
+  landColor(country) {
+    const [, lat] = d3.geoCentroid(country);
+    const absLat = Math.abs(lat);
+
+    if (absLat > 68) return '#dce9e3';
+    if (absLat > 57) return '#9cae88';
+    if (absLat < 18) return '#3f7a45';
+    if (absLat < 34) return '#688749';
+    if (absLat < 48) return '#9c8952';
+    return '#78835f';
+  }
+
+  bindInteractions() {
+    const drag = d3
+      .drag()
+      .filter((event) => {
+        // 点击活动节点时不触发拖拽，让 click 事件正常传递
+        return !event.target.closest('.map-node');
+      })
+      .on('start', () => {
+        this.dragging = true;
+      })
+      .on('drag', (event) => {
+        const rotation = this.projection.rotate();
+        const nextLat = Math.max(-78, Math.min(78, rotation[1] - event.dy * 0.26));
+
+        this.projection.rotate([
+          rotation[0] + event.dx * 0.26,
+          nextLat,
+          0
+        ]);
+
+        this.render();
+      })
+      .on('end', () => {
+        this.dragging = false;
+      });
+
+    this.svg.call(drag);
+
+    this.svg.on(
+      'wheel',
+      (event) => {
+        event.preventDefault();
+
+        const factor = event.deltaY > 0 ? 0.94 : 1.06;
+        const nextScale = Math.max(190, Math.min(440, this.projection.scale() * factor));
+        this.projection.scale(nextScale);
+
+        this.render();
+      },
+      { passive: false }
+    );
+  }
+
+  render() {
+    this.sphereLayer.selectAll('path').attr('d', this.path);
+    this.landLayer.selectAll('path').attr('d', this.path);
+    if (this.chinaHighlight) this.chinaHighlight.attr('d', this.path);
+
+    this.renderNight();
+    this.renderCityLights();
+    this.renderMarkers();
+    this.renderProvinces();
+  }
+
+  renderNight() {
+    const night = this.nightHemisphere();
+
+    this.nightPath
+      .datum(night)
+      .attr('d', this.path)
+      .attr('display', this.showNight ? null : 'none');
+
+    this.terminatorPath
+      .datum({ type: 'LineString', coordinates: night.coordinates[0] })
+      .attr('d', this.path)
+      .attr('display', this.showNight ? null : 'none');
+  }
+
+  renderCityLights() {
+    const visible = this.showLights
+      ? this.cityLights.filter(
+          (city) => this.isFront(city.lon, city.lat) && this.isNight(city.lon, city.lat)
+        )
+      : [];
+
+    const lights = this.cityLayer
+      .selectAll('g.city-light')
+      .data(visible, (d) => d.id);
+
+    lights.exit().remove();
+
+    const enter = lights
+      .enter()
+      .append('g')
+      .attr('class', 'city-light');
+
+    enter.append('circle').attr('class', 'city-halo');
+    enter.append('circle').attr('class', 'city-core');
+
+    const merged = enter
+      .merge(lights)
+      .attr('transform', (d) => {
+        const [x, y] = this.projection([d.lon, d.lat]);
+        return `translate(${x}, ${y})`;
+      });
+
+    merged
+      .select('.city-halo')
+      .attr('r', (d) => 2.8 + d.intensity * 4.6);
+
+    merged
+      .select('.city-core')
+      .attr('r', (d) => 0.7 + d.intensity * 0.9);
+  }
+
+  renderMarkers() {
+    const visibleEvents = this.filteredEvents.filter((event) => this.isFront(event.lon, event.lat));
+
+    const scaleRatio = this.projection.scale() / this.baseScale;
+    const clusterThreshold = Math.max(18, 42 / Math.pow(scaleRatio, 0.85));
+
+    const clusters = clusterProjectedEvents(
+      visibleEvents,
+      this.projection,
+      clusterThreshold
+    );
+
+    // 强制展开被点击的小聚合：将簇内事件拆成独立节点
+    if (this._expandedClusterId) {
+      const expandedIdx = clusters.findIndex((c) => c.id === this._expandedClusterId);
+      if (expandedIdx !== -1) {
+        const expanded = clusters[expandedIdx];
+        const singles = expanded.events
+          .map((event) => {
+            const pt = this.projection([event.lon, event.lat]);
+            return pt
+              ? { id: String(event.id), x: pt[0], y: pt[1], lon: event.lon, lat: event.lat, events: [event] }
+              : null;
+          })
+          .filter(Boolean);
+        // 用独立节点替换原聚合
+        clusters.splice(expandedIdx, 1, ...singles);
+      }
+    }
+
+    const groups = this.markerLayer
+      .selectAll('g.map-node')
+      .data(clusters, (d) => d.id);
+
+    groups.exit().remove();
+
+    const enter = groups
+      .enter()
+      .append('g')
+      .attr('class', 'map-node');
+
+    enter.append('circle').attr('class', 'node-body');
+    enter.append('circle').attr('class', 'node-core');
+    enter.append('text').attr('class', 'node-count');
+    enter.append('text').attr('class', 'node-label');
+
+    const merged = enter
+      .merge(groups)
+      .attr('transform', (d) => `translate(${d.x}, ${d.y})`)
+      .classed('is-cluster', (d) => d.events.length > 1)
+      .style('cursor', 'pointer')
+      .on('mouseenter', () => {
+        // 悬停时暂停自动旋转，方便点击
+        this._hoverPause = true;
+      })
+      .on('mouseleave', () => {
+        this._hoverPause = false;
+      })
+      .on('mousedown', (event) => {
+        // 阻止 mousedown 冒泡到 SVG，避免被 D3 drag 截获
+        event.stopPropagation();
+      })
+      .on('click', (event, cluster) => {
+        event.stopPropagation();
+
+        if (cluster.events.length > 1) {
+          // 小聚合（≤5 个事件）：强制展开为独立节点
+          if (cluster.events.length <= 5) {
+            this._expandedClusterId = cluster.id;
+            this.zoomIntoCluster(cluster);
+            this.renderMarkers();
+            this.onClusterSelect?.(cluster);
+            return;
+          }
+          this.zoomIntoCluster(cluster);
+          this.onClusterSelect?.(cluster);
+          return;
+        }
+
+        const selected = cluster.events[0];
+        this.selectedEventId = selected.id;
+        this._expandedClusterId = null;
+        this.renderMarkers();
+        this.onEventSelect?.(selected);
+      });
+
+    merged
+      .select('.node-body')
+      .attr('r', (d) => (d.events.length > 1 ? 13 : 6.5))
+      .attr('fill', (d) =>
+        d.events.length > 1
+          ? '#e7f3fa'
+          : this.categoryColor(d.events[0].category)
+      )
+      .attr('stroke', '#06101c')
+      .attr('stroke-width', 2.2)
+      .attr('filter', 'url(#markerGlow)');
+
+    merged
+      .select('.node-core')
+      .attr('r', (d) => (d.events.length > 1 ? 0 : 2.1))
+      .attr('fill', '#fff');
+
+    merged
+      .select('.node-count')
+      .attr('display', (d) => (d.events.length > 1 ? null : 'none'))
+      .attr('text-anchor', 'middle')
+      .attr('dy', 4)
+      .text((d) => d.events.length);
+
+    merged
+      .select('.node-label')
+      .attr('dx', (d) => (d.events.length > 1 ? 18 : 11))
+      .attr('dy', 4)
+      .text((d) =>
+        d.events.length > 1
+          ? `${d.events[0].city} · ${d.events.length} 场`
+          : d.events[0].city
+      );
+
+    // 独立的脉冲圆圈图层，不影响 g.map-node 的边界框稳定性
+    const pulseGroups = this.pulseLayer
+      .selectAll('g.pulse-node')
+      .data(clusters, (d) => d.id);
+
+    pulseGroups.exit().remove();
+
+    const pulseEnter = pulseGroups
+      .enter()
+      .append('g')
+      .attr('class', 'pulse-node');
+
+    pulseEnter.append('circle').attr('class', 'node-pulse');
+
+    pulseEnter
+      .merge(pulseGroups)
+      .attr('transform', (d) => `translate(${d.x}, ${d.y})`);
+  }
+
+  zoomIntoCluster(cluster) {
+    const startRotation = this.projection.rotate();
+    const startScale = this.projection.scale();
+    const targetRotation = [-cluster.lon, -cluster.lat, 0];
+    const targetScale = Math.min(440, Math.max(startScale * 1.45, 360));
+
+    const interpolateRotation = d3.interpolate(startRotation, targetRotation);
+    const interpolateScale = d3.interpolateNumber(startScale, targetScale);
+
+    d3.transition()
+      .duration(650)
+      .tween('cluster-zoom', () => (t) => {
+        this.projection
+          .rotate(interpolateRotation(t))
+          .scale(interpolateScale(t));
+        this.render();
+      });
+  }
+
+  categoryColor(category) {
+    return CATEGORY_COLORS[category] ?? '#b9d2df';
+  }
+
+  isFront(lon, lat) {
+    const rotation = this.projection.rotate();
+    const center = [-rotation[0], -rotation[1]];
+    return d3.geoDistance([lon, lat], center) < Math.PI / 2;
+  }
+
+  solarPoint() {
+    const now = new Date();
+    const yearStart = Date.UTC(now.getUTCFullYear(), 0, 0);
+    const dayOfYear = (now.getTime() - yearStart) / 86400000;
+
+    const declination = 23.44 * Math.sin((2 * Math.PI / 365) * (dayOfYear - 81));
+    const utcHours = now.getUTCHours() + now.getUTCMinutes() / 60 + now.getUTCSeconds() / 3600;
+    const longitude = 180 - utcHours * 15;
+
+    return [longitude, declination];
+  }
+
+  nightHemisphere() {
+    const [sunLon, sunLat] = this.solarPoint();
+    const antiSolar = [sunLon > 0 ? sunLon - 180 : sunLon + 180, -sunLat];
+
+    return d3
+      .geoCircle()
+      .center(antiSolar)
+      .radius(90)();
+  }
+
+  isNight(lon, lat) {
+    return d3.geoDistance([lon, lat], this.solarPoint()) > Math.PI / 2;
+  }
+
+  setFilters({ year = 'all', category = 'all' }) {
+    this.filteredEvents = this.events.filter((event) => {
+      const yearMatch = year === 'all' || String(event.year) === String(year);
+      const categoryMatch = category === 'all' || event.category === category;
+      return yearMatch && categoryMatch;
+    });
+
+    this.selectedEventId = null;
+    this._expandedClusterId = null;
+    this.renderMarkers();
+    return this.filteredEvents;
+  }
+
+  setAutoRotate(value) {
+    this.autoRotate = value;
+  }
+
+  setShowNight(value) {
+    this.showNight = value;
+    this.renderNight();
+  }
+
+  setShowLights(value) {
+    this.showLights = value;
+    this.renderCityLights();
+  }
+
+  clearExpanded() {
+    if (this._expandedClusterId !== null) {
+      this._expandedClusterId = null;
+      this.renderMarkers();
+    }
+  }
+
+  renderProvinces() {
+    if (!this._hasProvinces || !this.provinceFeatures.length) return;
+
+    // 缩放时显示省区
+    const scale = this.projection.scale();
+    const showProvinces = scale >= 290;
+
+    const paths = this.provinceLayer
+      .selectAll('path.province')
+      .data(showProvinces ? this.provinceFeatures : [], (d) => d.properties?.adcode || d.properties?.name);
+
+    paths.exit().remove();
+
+    const enter = paths
+      .enter()
+      .append('path')
+      .attr('class', 'province');
+
+    enter
+      .merge(paths)
+      .attr('d', this.path)
+      .append('title')
+      .text((d) => d.properties?.name || '');
+  }
+
+  startAnimation() {
+    d3.timer((now) => {
+      const dt = Math.min(40, now - this.lastFrame);
+      this.lastFrame = now;
+      this.pulsePhase += dt * 0.004;
+
+      const pulse = 0.5 + 0.5 * Math.sin(this.pulsePhase);
+
+      this.pulseLayer
+        .selectAll('.node-pulse')
+        .attr('r', (d) => (d.events.length > 1 ? 18 : 12) + pulse * 4)
+        .attr('opacity', 0.08 + pulse * 0.26)
+        .attr('fill', (d) =>
+          d.events.length > 1
+            ? '#dff4ff'
+            : this.categoryColor(d.events[0].category)
+        );
+
+      if (!this.autoRotate || this.dragging || this._hoverPause) return;
+
+      const rotation = this.projection.rotate();
+      this.projection.rotate([
+        rotation[0] + dt * 0.0024,
+        rotation[1],
+        0
+      ]);
+
+      this.render();
+    });
+  }
+}
