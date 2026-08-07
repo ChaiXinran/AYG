@@ -1,0 +1,32 @@
+html, body {
+  background: #020711;
+}
+
+.china-map-svg {
+  width: 100%;
+  height: 100vh;
+  display: block;
+}
+
+.china-province {
+  transition: filter 160ms ease, stroke 160ms ease;
+}
+
+.china-province:hover {
+  filter: brightness(1.18);
+}
+
+.event-node-pulse {
+  animation: chinaPulse 2s infinite ease-out;
+}
+
+@keyframes chinaPulse {
+  from {
+    opacity: .45;
+    r: 6px;
+  }
+  to {
+    opacity: 0;
+    r: 18px;
+  }
+}
