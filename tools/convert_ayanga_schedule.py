@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Convert a public schedule workbook into website event nodes.
+"""Legacy converter for archived annual Ayanga workbooks.
 
-Only two positional arguments are required: input.xlsx and output.js. The
-converter uses the first worksheet and infers the artist/year automatically.
+The live site no longer imports this converter's output. Use
+tools/convert_artist_workbook.py with the full-category workbook instead.
 """
 
 from __future__ import annotations

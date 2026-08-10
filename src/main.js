@@ -1,6 +1,6 @@
 import { EventGlobe } from './globe.js?v=29';
 import { loadChinaProvinces } from './chinaMapData.js';
-import { events } from './data/allEvents.js?v=29';
+import { activePerson, people, personUrl } from './data/personRegistry.js';
 import { cityLights } from './data/cities.js';
 import { EventTimeline } from './components/timeline/EventTimeline.js';
 import { fillEventLinks } from './components/event-details/eventLinks.js';
@@ -22,6 +22,11 @@ function getEventDates(event) {
   return [event.date.split('~')[0].trim()];
 }
 
+const person = activePerson();
+const events = person.events;
+localStorage.setItem('event-earth-person', person.id);
+document.title = `${person.name} · My Event Earth`;
+
 const availableDates = events.flatMap(getEventDates).sort();
 const defaultStartDate = availableDates[0] || '2024-01-01';
 const defaultEndDate = availableDates.at(-1) || '2026-12-31';
@@ -37,9 +42,15 @@ app.innerHTML = `
       <header class="topbar">
         <div class="brand">
           <div class="brand-title">MY EVENT EARTH</div>
-          <div class="brand-subtitle">从世界地图出发，找到一场演出留下的所有痕迹</div>
+          <div class="brand-subtitle">${person.subtitle}</div>
         </div>
         <div class="topbar-actions">
+          <label class="person-switcher">
+            <span>人物</span>
+            <select id="personSelect" aria-label="切换人物">
+              ${people.map((item) => `<option value="${item.id}"${item.id === person.id ? ' selected' : ''}>${item.name}</option>`).join('')}
+            </select>
+          </label>
           <button class="ui-button" type="button">+ 添加活动</button>
           <button class="ui-button" type="button">登录</button>
         </div>
@@ -130,6 +141,10 @@ app.innerHTML = `
 `;
 
 const card = document.querySelector('#eventCard');
+document.querySelector('#personSelect').addEventListener('change', (event) => {
+  localStorage.setItem('event-earth-person', event.target.value);
+  window.location.href = personUrl(event.target.value);
+});
 new NavigationRail({ container: document.body, active: 'earth' });
 const shell = document.querySelector('.app-shell');
 const sidebar = document.querySelector('#filterPanel');
@@ -175,7 +190,7 @@ let globe;
     provinceFeatures,
     onEventSelect: openEventCard,
     onClusterSelect: closeEventCard,
-    onChinaClick: () => { window.location.href = './china.html'; }
+    onChinaClick: () => { window.location.href = personUrl(person.id, './china.html'); }
   });
 
   document.querySelector('#applyFilters').addEventListener('click', applyFilters);

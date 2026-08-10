@@ -448,8 +448,33 @@ select:focus {
 
 .topbar-actions {
   display: flex;
+  align-items: center;
   gap: 9px;
   pointer-events: auto;
+}
+
+.person-switcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px 5px 11px;
+  border: 1px solid rgba(141, 190, 217, .2);
+  border-radius: 11px;
+  background: rgba(5, 17, 30, .86);
+  color: #8fa8b8;
+  font-size: 12px;
+  backdrop-filter: blur(14px);
+}
+
+.person-switcher select {
+  width: auto;
+  min-width: 90px;
+  padding: 5px 28px 5px 9px;
+  border: 0;
+  border-radius: 7px;
+  background-color: #11283c;
+  color: #eef6fb;
+  cursor: pointer;
 }
 
 .sidebar {
@@ -796,6 +821,11 @@ body:has(.app-shell:not(.sidebar-collapsed)) .navigation-rail {
 
   .brand-subtitle,
   .topbar-actions .ui-button:first-child {
+    display: none;
+  }
+
+  .person-switcher > span,
+  .topbar-actions .ui-button {
     display: none;
   }
 

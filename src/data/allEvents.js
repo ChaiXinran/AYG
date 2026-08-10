@@ -1,4 +1,8 @@
-import { scheduleEvents, unmappedEvents as registeredUnmappedEvents } from './scheduleRegistry.js';
+import { activePerson } from './personRegistry.js';
+
+const person = activePerson();
+const scheduleEvents = person.events;
+const registeredUnmappedEvents = person.unmappedEvents;
 
 const hasPublicLocation = (event) => ![event.city, event.venue]
   .filter(Boolean)

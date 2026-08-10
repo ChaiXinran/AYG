@@ -1,9 +1,11 @@
 import { ChinaMap } from './chinaMap.js?v=29';
 import { loadChinaProvinces } from './chinaMapData.js';
-import { events } from './data/allEvents.js?v=29';
+import { activePerson, personUrl } from './data/personRegistry.js';
 import { NavigationRail } from './components/navigation/NavigationRail.js';
 
 async function init() {
+  const person = activePerson();
+  const events = person.events;
   // 显示加载中
   document.body.innerHTML =
     '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#8aa8b8;font-family:system-ui,sans-serif;font-size:16px;">加载省区数据…</div>';
@@ -23,7 +25,7 @@ async function init() {
     container: document.body,
     events,
     onBack: () => {
-      window.location.href = './index.html';
+      window.location.href = personUrl(person.id, './index.html');
     }
   });
   map.setProvinceData(features);
