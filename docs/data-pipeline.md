@@ -1,4 +1,4 @@
-# 演出节点数据采集与转换
+﻿# 演出节点数据采集与转换
 
 ## 基本规则
 
@@ -33,7 +33,7 @@ python tools/convert_events.py outputs/event-data-pipeline/event-earth-events-te
 默认输出：
 
 ```text
-src/data/generated/events.json
+core/data/generated/events.json
 ```
 
 指定输出：

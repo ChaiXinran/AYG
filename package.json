@@ -1,0 +1,9 @@
+{
+  "name": "musical-atlas",
+  "private": true,
+  "scripts": {
+    "build:home": "node scripts/build-site.js home",
+    "build:ayg": "node scripts/build-site.js ayg",
+    "build:zyl": "node scripts/build-site.js zyl"
+  }
+}

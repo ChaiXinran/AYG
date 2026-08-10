@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Legacy converter for archived annual Ayanga workbooks.
 
 The live site no longer imports this converter's output. Use
@@ -153,7 +153,7 @@ def convert(source: Path) -> tuple[list[dict], list[dict]]:
 
 
 def update_site_registry(output: Path) -> int:
-    """Register every generated schedule module under src/data with the site."""
+    """Register every generated schedule module under core/data with the site."""
     project_root = Path(__file__).resolve().parent.parent
     data_dir = (project_root / "src" / "data").resolve()
     resolved_output = output.resolve()

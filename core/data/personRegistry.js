@@ -29,7 +29,11 @@ export const people = [
 
 export function activePerson() {
   const folderPerson = window.location.pathname.split('/').find((part) => part === 'ayg' || part === 'zyl');
-  const hostPerson = window.location.hostname.startsWith('aygmusical.') ? 'ayanga' : window.location.hostname.startsWith('zyldl.') ? 'zhengyunlong' : '';
+  const hostPerson = window.location.hostname.startsWith('aygmusical.')
+    ? 'ayanga'
+    : /^(zylmusical|zyldl)\./.test(window.location.hostname)
+      ? 'zhengyunlong'
+      : '';
   const requested = new URLSearchParams(window.location.search).get('person')
     || hostPerson
     || ({ ayg: 'ayanga', zyl: 'zhengyunlong' }[folderPerson])
@@ -42,7 +46,7 @@ export function personUrl(personId, href = window.location.href) {
   const page = url.pathname.split('/').pop() || 'index.html';
   const currentFolder = window.location.pathname.split('/').find((part) => part === 'ayg' || part === 'zyl');
   const targetFolder = personId === 'ayanga' ? 'ayg' : 'zyl';
-  const productionHost = personId === 'ayanga' ? 'aygmusical.ranyechai.site' : 'zyldl.ranyechai.site';
+  const productionHost = personId === 'ayanga' ? 'aygmusical.ranyechai.site' : 'zylmusical.ranyechai.site';
 
   url.searchParams.delete('person');
   if (window.location.hostname.endsWith('ranyechai.site') && window.location.hostname !== 'musical.ranyechai.site') {

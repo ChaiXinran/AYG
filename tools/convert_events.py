@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Convert the Event Earth collection workbook into validated JSON.
 
 No third-party packages are required. The reader intentionally supports the
@@ -245,7 +245,7 @@ def convert(rows: list[list[object]]) -> tuple[dict, list[str], list[str]]:
 def main() -> int:
     parser = argparse.ArgumentParser(description="将演出采集 Excel 转为 Event Earth JSON")
     parser.add_argument("input", type=Path, help="输入 .xlsx 文件")
-    parser.add_argument("-o", "--output", type=Path, default=Path("src/data/generated/events.json"), help="输出 JSON")
+    parser.add_argument("-o", "--output", type=Path, default=Path("core/data/generated/events.json"), help="输出 JSON")
     parser.add_argument("--allow-errors", action="store_true", help="即使存在校验错误也写出可用记录")
     args = parser.parse_args()
     try:

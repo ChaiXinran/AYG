@@ -1,4 +1,4 @@
-# Event Earth Demo
+﻿# Event Earth Demo
 
 一个用于继续迭代“活动地球”网站首页的纯前端、多文件 Demo。
 
@@ -32,7 +32,7 @@
 ```text
 event-earth-demo/
 ├── index.html
-├── src/
+├── core/
 │   ├── main.js          # 页面 UI 与交互入口
 │   ├── globe.js         # 地球渲染核心
 │   ├── styles.css       # 全部样式
@@ -66,7 +66,7 @@ http://localhost:8000
 
 ## 外部依赖
 
-`src/globe.js` 直接从 jsDelivr 使用固定版本：
+`core/globe.js` 直接从 jsDelivr 使用固定版本：
 
 - D3 7.9.0
 - topojson-client 3.1.0
@@ -84,16 +84,16 @@ http://localhost:8000
 也支持包含“公开演出活动汇总 / 影视作品 / OST及原声 / 单曲”的综合工作簿：
 
 ```bash
-python tools/convert_artist_workbook.py "src/data/郑云龙_2014-2026_全分类汇总.xlsx" \
-  "src/data/artists/zhengyunlong.js" --artist-id zhengyunlong --artist-name 郑云龙
+python tools/convert_artist_workbook.py "core/data/郑云龙_2014-2026_全分类汇总.xlsx" \
+  "core/data/artists/zhengyunlong.js" --artist-id zhengyunlong --artist-name 郑云龙
 
-python tools/convert_artist_workbook.py "src/data/阿云嘎_2014-2026_全分类汇总.xlsx" \
-  "src/data/artists/ayanga.js" --artist-id ayanga --artist-name 阿云嘎
+python tools/convert_artist_workbook.py "core/data/阿云嘎_2014-2026_全分类汇总.xlsx" \
+  "core/data/artists/ayanga.js" --artist-id ayanga --artist-name 阿云嘎
 ```
 
 每次更新 Excel 后重新运行对应命令即可。转换器会读取“音乐剧、话剧、演唱会／gala、晚会、综艺、商务、影视作品、OST、单曲”工作表，并以工作表分类为准，不再扫描旧年度文件。
 
-人物及其数据源统一登记在 `src/data/personRegistry.js`。页面通过 `?person=ayanga`
+人物及其数据源统一登记在 `core/data/personRegistry.js`。页面通过 `?person=ayanga`
 或 `?person=zhengyunlong` 切换，并会记住用户最近一次选择。
 
 ```js
@@ -115,18 +115,18 @@ python tools/convert_artist_workbook.py "src/data/阿云嘎_2014-2026_全分类�
 
 主要看：
 
-- `src/globe.js` -> `landColor()` 与 SVG gradients
-- `src/styles.css` -> `.ocean`、`.country`、`.night-shade`
+- `core/globe.js` -> `landColor()` 与 SVG gradients
+- `core/styles.css` -> `.ocean`、`.country`、`.night-shade`
 
 目前大陆颜色是按纬度做的视觉近似，并不是卫星纹理或真实植被数据。
 
 ### 3. 节点聚合
 
-`src/clustering.js`
+`core/clustering.js`
 
 当前使用轻量“屏幕空间距离聚合”。
 
-`src/globe.js`：
+`core/globe.js`：
 
 ```js
 const clusterThreshold = Math.max(
@@ -151,7 +151,7 @@ const clusterThreshold = Math.max(
 
 ### 5. 城市灯光
 
-`src/data/cities.js` 目前只是视觉测试点，不是真实人口或 NASA 夜光数据。
+`core/data/cities.js` 目前只是视觉测试点，不是真实人口或 NASA 夜光数据。
 
 如果后面需要更真实，可以替换为：
 
