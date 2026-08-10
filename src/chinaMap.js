@@ -43,10 +43,11 @@ function eventDates(event) {
 }
 
 export class ChinaMap {
-  constructor({ container, events, onBack }) {
+  constructor({ container, events, backgroundImage, onBack }) {
     this.container = d3.select(container);
     this.events = (events || []).filter((event) => event.lon >= 73 && event.lon <= 135 && event.lat >= 17 && event.lat <= 54);
     this.filteredEvents = [...this.events];
+    this.backgroundImage = backgroundImage;
     this.onBack = onBack;
     this.provinceFeatures = [];
     this.selectedEventId = null;
@@ -84,11 +85,11 @@ export class ChinaMap {
 
     svg.append('image')
       .attr('class', 'china-background-image')
-      .attr('href', './background/ayg8.jpg')
+      .attr('href', this.backgroundImage)
       .attr('width', W)
       .attr('height', H)
       .attr('preserveAspectRatio', 'xMidYMid slice');
-    svg.append('rect').attr('width', W).attr('height', H).attr('fill', 'url(#cmBg)').attr('opacity', 0.72);
+    svg.append('rect').attr('class', 'china-background-overlay').attr('width', W).attr('height', H).attr('fill', 'url(#cmBg)');
 
     const mapGlow = defs.append('filter').attr('id', 'cmMapGlow').attr('x', '-40%').attr('y', '-40%').attr('width', '180%').attr('height', '180%');
     mapGlow.append('feGaussianBlur').attr('stdDeviation', 5).attr('result', 'blur');
@@ -166,7 +167,7 @@ export class ChinaMap {
       this.onBack?.();
     });
     back.append('rect').attr('width', 76).attr('height', 32).attr('rx', 8).attr('fill', '#0d1e30').attr('stroke', '#2a5068').attr('stroke-width', 1);
-    back.append('text').attr('x', 38).attr('y', 21).attr('text-anchor', 'middle').attr('fill', '#c0d0d8').attr('font-size', 13).text('← 返回');
+    back.append('text').attr('x', 38).attr('y', 21).attr('text-anchor', 'middle').attr('fill', '#c0d0d8').attr('font-size', 13).text('⬅︎ 返回');
 
     // ── 事件卡片 ──
     this.renderEventCard(svg);
@@ -392,9 +393,9 @@ export class ChinaMap {
     const start = dates[0] || '2024-01-01';
     const end = dates.at(-1) || '2026-12-31';
     const categories = [...new Set(this.events.map((event) => event.category).filter(Boolean))];
-    const panel = this.container.append('div').attr('class', 'cm-filter-panel is-collapsed');
+    const panel = this.container.append('div').attr('id', 'cmFilterPanel').attr('class', 'cm-filter-panel');
     panel.html(`
-      <div class="cm-filter-header"><div><strong>筛选活动</strong><span id="cmFilterCount">${this.filteredEvents.length} 个活动</span></div><button id="cmFilterCollapse" type="button" aria-label="展开筛选" title="筛选">⌕</button></div>
+      <div class="cm-filter-header"><div><strong>筛选活动</strong><span id="cmFilterCount">${this.filteredEvents.length} 个活动</span></div><button id="cmFilterCollapse" type="button" aria-label="收起筛选面板" title="收起筛选">‹</button></div>
       <div class="cm-filter-content">
         <label>关键词<input id="cmFilterKeyword" type="search" placeholder="活动、场馆、人物" /></label>
         <label>地点<input id="cmFilterLocation" type="search" placeholder="城市或场馆" /></label>
@@ -404,14 +405,17 @@ export class ChinaMap {
       </div>
     `);
     panel.on('click wheel mousedown', (event) => event.stopPropagation());
-    panel.select('#cmFilterCollapse').on('click', () => {
-      const collapsed = !panel.classed('is-collapsed');
-      panel.classed('is-collapsed', collapsed);
-      panel.select('#cmFilterCollapse').text(collapsed ? '⌕' : '‹').attr('aria-label', collapsed ? '展开筛选' : '收起筛选');
-    });
+    panel.select('#cmFilterCollapse').on('click', () => this.setFilterOpen(false));
     panel.select('#cmApplyFilters').on('click', () => this.applyFilters());
     panel.select('#cmResetFilters').on('click', () => this.resetFilters(start, end));
     panel.selectAll('input[type="search"]').on('keydown', (event) => { if (event.key === 'Enter') this.applyFilters(); });
+  }
+
+  setFilterOpen(open) {
+    this.container.select('#cmFilterPanel').classed('is-open', open);
+    const trigger = document.querySelector('#openChinaFilter');
+    trigger?.classList.toggle('hidden', open);
+    trigger?.setAttribute('aria-expanded', String(open));
   }
 
   applyFilters(syncTimeline = true) {

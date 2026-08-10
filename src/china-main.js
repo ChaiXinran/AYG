@@ -1,11 +1,13 @@
-import { ChinaMap } from './chinaMap.js?v=29';
+import { ChinaMap } from './chinaMap.js?v=32';
 import { loadChinaProvinces } from './chinaMapData.js';
-import { activePerson, personUrl } from './data/personRegistry.js';
-import { NavigationRail } from './components/navigation/NavigationRail.js';
+import { activePerson, personUrl } from './data/personRegistry.js?v=35';
+import { NavigationRail } from './components/navigation/NavigationRail.js?v=30';
 
 async function init() {
   const person = activePerson();
   const events = person.events;
+  const chinaBackgroundUrl = new URL(person.backgrounds.chinaMap, window.location.href).href;
+  document.documentElement.style.setProperty('--person-china-background', `url("${chinaBackgroundUrl}")`);
   // 显示加载中
   document.body.innerHTML =
     '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#8aa8b8;font-family:system-ui,sans-serif;font-size:16px;">加载省区数据…</div>';
@@ -24,13 +26,19 @@ async function init() {
   const map = new ChinaMap({
     container: document.body,
     events,
+    backgroundImage: person.backgrounds.chinaMap,
     onBack: () => {
       window.location.href = personUrl(person.id, './index.html');
     }
   });
   map.setProvinceData(features);
   map.show();
-  new NavigationRail({ container: document.body, active: 'earth' });
+  new NavigationRail({
+    container: document.body,
+    active: 'earth',
+    actions: [{ id: 'openChinaFilter', label: '筛选活动', icon: '⌕', controls: 'cmFilterPanel', expanded: false }],
+  });
+  document.querySelector('#openChinaFilter')?.addEventListener('click', () => map.setFilterOpen(true));
 }
 
 init();

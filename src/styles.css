@@ -48,11 +48,13 @@ select {
 .globe-panel::before {
   content: '';
   position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(rgba(3, 9, 20, 0.7), rgba(3, 9, 20, 0.7)),
-    url('../background/ayg8.jpg') center / cover no-repeat;
+  inset: -18px;
   z-index: 0;
+  background:
+    linear-gradient(rgba(3, 9, 20, .7), rgba(3, 9, 20, .7)),
+    var(--person-earth-background) center / cover no-repeat;
+  filter: blur(10px);
+  transform: scale(1.02);
   pointer-events: none;
 }
 

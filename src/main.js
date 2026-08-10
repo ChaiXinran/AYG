@@ -1,10 +1,11 @@
-import { EventGlobe } from './globe.js?v=29';
+import { EventGlobe } from './globe.js?v=31';
 import { loadChinaProvinces } from './chinaMapData.js';
-import { activePerson, people, personUrl } from './data/personRegistry.js';
+import { activePerson, people, personUrl } from './data/personRegistry.js?v=35';
 import { cityLights } from './data/cities.js';
 import { EventTimeline } from './components/timeline/EventTimeline.js';
 import { fillEventLinks } from './components/event-details/eventLinks.js';
-import { NavigationRail } from './components/navigation/NavigationRail.js';
+import { NavigationRail } from './components/navigation/NavigationRail.js?v=31';
+import { defaultTourForPerson } from './config/tours.js';
 
 async function loadProvinceData() {
   try {
@@ -24,6 +25,8 @@ function getEventDates(event) {
 
 const person = activePerson();
 const events = person.events;
+const earthBackgroundUrl = new URL(person.backgrounds.earth, window.location.href).href;
+document.documentElement.style.setProperty('--person-earth-background', `url("${earthBackgroundUrl}")`);
 localStorage.setItem('event-earth-person', person.id);
 document.title = `${person.name} · My Event Earth`;
 
@@ -55,10 +58,6 @@ app.innerHTML = `
           <button class="ui-button" type="button">登录</button>
         </div>
       </header>
-
-      <button id="openSidebar" class="panel-toggle panel-toggle-open" type="button" aria-controls="filterPanel" aria-expanded="false">
-        <span class="toggle-icon">☰</span><span>筛选</span>
-      </button>
 
       <aside id="filterPanel" class="sidebar hidden-panel" aria-label="活动筛选">
         <div class="sidebar-header">
@@ -145,7 +144,14 @@ document.querySelector('#personSelect').addEventListener('change', (event) => {
   localStorage.setItem('event-earth-person', event.target.value);
   window.location.href = personUrl(event.target.value);
 });
-new NavigationRail({ container: document.body, active: 'earth' });
+new NavigationRail({
+  container: document.body,
+  active: 'earth',
+  actions: [
+    { id: 'openTourMaps', label: '巡演地图', icon: '巡', href: personUrl(person.id, `./tour.html?work=${defaultTourForPerson(person.id)?.id || ''}`) },
+    { id: 'openSidebar', label: '筛选活动', icon: '⌕', controls: 'filterPanel', expanded: false },
+  ],
+});
 const shell = document.querySelector('.app-shell');
 const sidebar = document.querySelector('#filterPanel');
 const openSidebarButton = document.querySelector('#openSidebar');
@@ -188,6 +194,7 @@ let globe;
     events,
     cityLights,
     provinceFeatures,
+    backgroundImage: person.backgrounds.earth,
     onEventSelect: openEventCard,
     onClusterSelect: closeEventCard,
     onChinaClick: () => { window.location.href = personUrl(person.id, './china.html'); }

@@ -2,7 +2,7 @@ import { CATEGORY_GROUPS, CATEGORY_PAGES } from './categories.js';
 import { activePerson, personUrl } from '../../data/personRegistry.js';
 
 export class NavigationRail {
-  constructor({ container = document.body, active = 'earth' } = {}) {
+  constructor({ container = document.body, active = 'earth', actions = [] } = {}) {
     const person = activePerson();
     this.element = document.createElement('nav');
     this.element.className = 'navigation-rail';
@@ -46,6 +46,23 @@ export class NavigationRail {
       });
       this.element.append(groupElement);
     });
+    if (actions.length) {
+      const actionDivider = document.createElement('span');
+      actionDivider.className = 'navigation-rail-divider navigation-rail-action-divider';
+      this.element.append(actionDivider);
+      actions.forEach((action) => {
+        const control = document.createElement(action.href ? 'a' : 'button');
+        control.id = action.id;
+        control.className = 'navigation-rail-item navigation-rail-action';
+        if (action.href) control.href = action.href;
+        else control.type = 'button';
+        control.setAttribute('aria-label', action.label);
+        if (action.controls) control.setAttribute('aria-controls', action.controls);
+        if (action.expanded != null) control.setAttribute('aria-expanded', String(action.expanded));
+        control.innerHTML = `<span class="navigation-rail-icon">${action.icon}</span><span class="navigation-rail-tooltip">${action.label}</span>`;
+        this.element.append(control);
+      });
+    }
     document.addEventListener('click', (event) => {
       if (this.element.contains(event.target)) return;
       this.element.querySelectorAll('.navigation-rail-group.is-open').forEach((group) => group.classList.remove('is-open'));

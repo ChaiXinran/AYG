@@ -9,6 +9,8 @@
 .navigation-rail-item:hover .navigation-rail-tooltip { opacity: 1; transform: translate(0,-50%); }
 .navigation-rail-group { position:relative; flex:0 0 auto; }
 .navigation-rail-group > button { padding:0; border:0; background:transparent; cursor:pointer; }
+.navigation-rail-action { padding:0; border:0; background:transparent; cursor:pointer; }
+.navigation-rail-action.hidden { display:none; }
 .navigation-rail-group.is-active > .navigation-rail-item::before { position:absolute; left:-7px; width:3px; height:18px; border-radius:3px; background:#68c8ec; content:''; }
 .navigation-rail-submenu { position:absolute; top:-7px; left:42px; display:flex; flex-direction:column; gap:5px; width:46px; padding:7px 0; border:1px solid rgba(134,187,214,.16); border-radius:14px; background:rgba(5,17,30,.94); box-shadow:0 14px 42px rgba(0,0,0,.34); backdrop-filter:blur(18px); opacity:0; visibility:hidden; transform:translateX(-5px); pointer-events:none; transition:opacity 140ms ease,transform 140ms ease,visibility 140ms ease; }
 .navigation-rail-submenu::before { position:absolute; top:0; right:100%; width:8px; height:100%; content:''; }

@@ -3,15 +3,47 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#06111f" />
-    <title>My Event Earth</title>
-    <link rel="stylesheet" href="./src/styles.css?v=29" />
-    <link rel="stylesheet" href="./src/components/timeline/timeline.css?v=29" />
-    <link rel="stylesheet" href="./src/components/event-details/event-details.css?v=29" />
-    <link rel="stylesheet" href="./src/components/navigation/navigation.css?v=29" />
+    <meta name="theme-color" content="#080b12" />
+    <meta name="description" content="Musical Atlas：阿云嘎与郑云龙全球演出足迹入口。" />
+    <title>Musical Atlas · 人物档案</title>
+    <link rel="stylesheet" href="./atlas/atlas.css?v=1" />
   </head>
   <body>
-    <div id="app"></div>
-    <script type="module" src="./src/main.js?v=29"></script>
+    <main class="atlas-shell">
+      <header class="atlas-header">
+        <a class="wordmark" href="./" aria-label="Musical Atlas 首页">MUSICAL ATLAS</a>
+        <p>人物档案 · Artist Archive</p>
+      </header>
+
+      <section class="hero" aria-labelledby="atlas-title">
+        <p class="eyebrow">A living archive of stages, cities and time</p>
+        <h1 id="atlas-title">循着舞台，<br />看见他们走过的世界。</h1>
+        <p class="hero-copy">从一座城市到另一座城市，以时间与地点重新打开两位音乐剧演员的公开演出档案。</p>
+      </section>
+
+      <section class="artist-grid" aria-label="选择人物">
+        <a class="artist-card artist-card--ayg" href="./ayg/">
+          <span class="card-index">01</span>
+          <div class="card-copy">
+            <p class="artist-roman">AYANGA</p>
+            <h2>阿云嘎</h2>
+            <p>全球演出足迹 · 2014—2026</p>
+          </div>
+          <span class="explore">Explore <span aria-hidden="true">↗</span></span>
+        </a>
+
+        <a class="artist-card artist-card--zyl" href="./zyl/">
+          <span class="card-index">02</span>
+          <div class="card-copy">
+            <p class="artist-roman">ZHENG YUNLONG</p>
+            <h2>郑云龙</h2>
+            <p>全球演出足迹 · 2014—2026</p>
+          </div>
+          <span class="explore">Explore <span aria-hidden="true">↗</span></span>
+        </a>
+      </section>
+
+      <footer><span>musical.ranyechai.site</span><span>2014—2026</span></footer>
+    </main>
   </body>
 </html>

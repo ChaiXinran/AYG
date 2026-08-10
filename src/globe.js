@@ -14,11 +14,12 @@ const MIN_GLOBE_SCALE = 160;
 const MAX_GLOBE_SCALE = 1100;
 
 export class EventGlobe {
-  constructor({ svgElement, events, cityLights, provinceFeatures, onEventSelect, onClusterSelect, onChinaClick }) {
+  constructor({ svgElement, events, cityLights, provinceFeatures, backgroundImage, onEventSelect, onClusterSelect, onChinaClick }) {
     this.svg = d3.select(svgElement);
     this.events = events;
     this.cityLights = cityLights;
     this.provinceFeatures = provinceFeatures || [];
+    this.backgroundImage = backgroundImage;
     this._hasProvinces = this.provinceFeatures.length > 0;
     this.filteredEvents = [...events];
     this.onEventSelect = onEventSelect;
@@ -127,7 +128,7 @@ export class EventGlobe {
     // 背景图（降低透明度，铺满 SVG）
     this.svg
       .append('image')
-      .attr('href', './background/ayg8.jpg')
+      .attr('href', this.backgroundImage)
       .attr('width', '100%')
       .attr('height', '100%')
       .attr('preserveAspectRatio', 'xMidYMid slice')
