@@ -1,16 +1,15 @@
 import { EventGlobe } from './globe.js';
+import { loadChinaProvinces } from './chinaMapData.js';
 import { events } from './data/events.js';
 import { cityLights } from './data/cities.js';
 
 // 加载省区数据（球面渲染用）
 async function loadProvinceData() {
   try {
-    const resp = await fetch(
-      'https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json'
-    );
-    const data = await resp.json();
+    const data = await loadChinaProvinces();
     return data.features || [];
-  } catch {
+  } catch (error) {
+    console.warn(error.message);
     return [];
   }
 }
@@ -118,7 +117,7 @@ const card = document.querySelector('#eventCard');
 function openEventCard(event) {
   document.querySelector('#cardCategory').textContent = event.category;
   document.querySelector('#cardTitle').textContent = event.title;
-  document.querySelector('#cardMeta').textContent = `${event.date} · ${event.city} · ${event.venue}`;
+  document.querySelector('#cardMeta').textContent = `${event.dateLabel || event.date} · ${event.city} · ${event.venue}${event.role ? ' · ' + event.role : ''}`;
   document.querySelector('#cardDescription').textContent = event.description;
   card.classList.remove('hidden');
 }
@@ -139,7 +138,7 @@ let globe;
     provinceFeatures,
     onEventSelect: openEventCard,
     onClusterSelect: closeEventCard,
-    onChinaClick: () => { window.location.href = '/china.html'; }
+    onChinaClick: () => { window.location.href = './china.html'; }
   });
 
   // 绑定筛选和开关事件

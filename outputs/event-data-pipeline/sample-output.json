@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-08T14:19:42.128347+00:00",
+  "entities": {
+    "works": [
+      {
+        "id": "work_rent",
+        "title": "RENT"
+      }
+    ],
+    "productions": [
+      {
+        "id": "production_rent-2026-中国巡演版",
+        "workId": "work_rent",
+        "title": "RENT 2026 中国巡演版"
+      }
+    ],
+    "venues": [
+      {
+        "id": "venue_cn_北京_天桥艺术中心",
+        "name": "天桥艺术中心",
+        "countryCode": "CN",
+        "country": "中国",
+        "province": "北京",
+        "city": "北京",
+        "address": "北京市西城区天桥南大街9号楼",
+        "longitude": 116.4074,
+        "latitude": 39.9042
+      }
+    ],
+    "events": [
+      {
+        "id": "evt-cn-beijing-rent2026-tianqiao",
+        "title": "RENT · 北京站",
+        "category": "音乐剧",
+        "workId": "work_rent",
+        "productionId": "production_rent-2026-中国巡演版",
+        "venueId": "venue_cn_北京_天桥艺术中心",
+        "sessions": [
+          {
+            "date": "2026-03-21",
+            "startTime": "14:00",
+            "endTime": "16:30",
+            "sourceUrl": "https://example.com/source"
+          },
+          {
+            "date": "2026-03-21",
+            "startTime": "19:30",
+            "endTime": "22:00",
+            "sourceUrl": "https://example.com/source"
+          }
+        ],
+        "startDate": "2026-03-21",
+        "endDate": "2026-03-21",
+        "role": "Roger",
+        "people": [
+          "演员甲",
+          "演员乙"
+        ],
+        "tags": [
+          "巡演",
+          "中文版"
+        ],
+        "description": "同一驻演节点的第一场。",
+        "officialUrl": "https://example.com/official",
+        "posterUrl": null,
+        "source": {
+          "url": "https://example.com/source",
+          "note": "官方页面"
+        },
+        "status": "draft",
+        "extras": {
+          "字幕语言": "中文"
+        }
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "evt-cn-beijing-rent2026-tianqiao",
+      "title": "RENT · 北京站",
+      "category": "音乐剧",
+      "year": 2026,
+      "startDate": "2026-03-21",
+      "endDate": "2026-03-21",
+      "sessions": [
+        {
+          "date": "2026-03-21",
+          "startTime": "14:00",
+          "endTime": "16:30",
+          "sourceUrl": "https://example.com/source"
+        },
+        {
+          "date": "2026-03-21",
+          "startTime": "19:30",
+          "endTime": "22:00",
+          "sourceUrl": "https://example.com/source"
+        }
+      ],
+      "sessionCount": 2,
+      "country": "中国",
+      "countryCode": "CN",
+      "city": "北京",
+      "venue": "天桥艺术中心",
+      "lon": 116.4074,
+      "lat": 39.9042,
+      "description": "同一驻演节点的第一场。",
+      "tags": [
+        "巡演",
+        "中文版"
+      ],
+      "extras": {
+        "字幕语言": "中文"
+      }
+    }
+  ]
+}
