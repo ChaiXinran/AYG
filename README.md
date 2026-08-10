@@ -35,11 +35,11 @@ event-earth-demo/
 ├── src/
 │   ├── main.js          # 页面 UI 与交互入口
 │   ├── globe.js         # 地球渲染核心
-│   ├── clustering.js    # 节点聚合逻辑
 │   ├── styles.css       # 全部样式
 │   └── data/
-│       ├── events.js    # Demo 活动数据
-│       └── cities.js    # Demo 夜间城市灯光点
+│       ├── allEvents.js # 网站活动数据入口
+│       ├── scheduleRegistry.js # 自动生成的年度数据注册表
+│       └── cities.js    # 夜间城市灯光点
 └── README.md
 ```
 
@@ -78,7 +78,7 @@ http://localhost:8000
 
 ### 1. 活动数据
 
-`src/data/events.js`
+年度数据由 `tools/convert_ayanga_schedule.py` 从 Excel 生成并自动接入。
 
 ```js
 {
@@ -150,7 +150,7 @@ const clusterThreshold = Math.max(
 现在活动来自：
 
 ```js
-import { events } from './data/events.js';
+import { events } from './data/allEvents.js';
 ```
 
 以后可改为从 Supabase 查询，再传给：

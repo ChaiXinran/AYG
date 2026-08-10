@@ -1,13 +1,17 @@
 import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7.9.0/+esm';
 import { feature } from 'https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/+esm';
 import world from 'https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json/+esm';
-import { clusterProjectedEvents } from './clustering.js';
 
 const CATEGORY_COLORS = {
   音乐剧: '#ff5d8f',
   综艺: '#42c9e8',
-  晚会: '#f5bd4f'
+  晚会: '#f5bd4f',
+  音乐会: '#9c7cff',
+  其他: '#63d6a5'
 };
+
+const MIN_GLOBE_SCALE = 160;
+const MAX_GLOBE_SCALE = 1100;
 
 export class EventGlobe {
   constructor({ svgElement, events, cityLights, provinceFeatures, onEventSelect, onClusterSelect, onChinaClick }) {
@@ -24,6 +28,7 @@ export class EventGlobe {
     this.width = 900;
     this.height = 700;
     this.baseScale = 290;
+    this.initialRotation = [-112, -28, 0];
 
     this.projection = d3
       .geoOrthographic()
@@ -31,7 +36,7 @@ export class EventGlobe {
       .scale(this.baseScale)
       .clipAngle(90)
       .precision(0.4)
-      .rotate([-112, -28, 0]);
+      .rotate(this.initialRotation);
 
     this.path = d3.geoPath(this.projection);
     this.countries = feature(world, world.objects.countries);
@@ -261,14 +266,27 @@ export class EventGlobe {
       (event) => {
         event.preventDefault();
 
-        const factor = event.deltaY > 0 ? 0.94 : 1.06;
-        const nextScale = Math.max(190, Math.min(440, this.projection.scale() * factor));
+        const factor = event.deltaY > 0 ? 0.9 : 1.1;
+        const nextScale = Math.max(
+          MIN_GLOBE_SCALE,
+          Math.min(MAX_GLOBE_SCALE, this.projection.scale() * factor)
+        );
         this.projection.scale(nextScale);
 
         this.render();
       },
       { passive: false }
     );
+
+    this.svg.on('click.focus', (event) => {
+      if (event.target.closest?.('.map-node')) return;
+      const [x, y] = d3.pointer(event, this.svg.node());
+      const [centerX, centerY] = this.projection.translate();
+      if (Math.hypot(x - centerX, y - centerY) > this.projection.scale()) return;
+      const coordinate = this.projection.invert([x, y]);
+      if (!coordinate || coordinate.some((value) => !Number.isFinite(value))) return;
+      this.zoomToCoordinate(coordinate[0], coordinate[1]);
+    });
   }
 
   render() {
@@ -335,33 +353,29 @@ export class EventGlobe {
 
   renderMarkers() {
     const visibleEvents = this.filteredEvents.filter((event) => this.isFront(event.lon, event.lat));
-
-    const scaleRatio = this.projection.scale() / this.baseScale;
-    const clusterThreshold = Math.max(18, 42 / Math.pow(scaleRatio, 0.85));
-
-    const clusters = clusterProjectedEvents(
-      visibleEvents,
-      this.projection,
-      clusterThreshold
-    );
-
-    // 强制展开被点击的小聚合：将簇内事件拆成独立节点
-    if (this._expandedClusterId) {
-      const expandedIdx = clusters.findIndex((c) => c.id === this._expandedClusterId);
-      if (expandedIdx !== -1) {
-        const expanded = clusters[expandedIdx];
-        const singles = expanded.events
-          .map((event) => {
-            const pt = this.projection([event.lon, event.lat]);
-            return pt
-              ? { id: String(event.id), x: pt[0], y: pt[1], lon: event.lon, lat: event.lat, events: [event] }
-              : null;
-          })
-          .filter(Boolean);
-        // 用独立节点替换原聚合
-        clusters.splice(expandedIdx, 1, ...singles);
+    this.markerLayer.classed('labels-visible', this.projection.scale() >= 520);
+    const chinaGroups = new Map();
+    const overseas = [];
+    visibleEvents.forEach((event) => {
+      if (!this.isChinaEvent(event)) {
+        overseas.push({ id: String(event.id), lon: event.lon, lat: event.lat, events: [event], label: this.locationLabel(event) });
+        return;
       }
-    }
+      const city = this.normalizeCity(event.city);
+      const key = city ? `china-city:${city}` : `china-event:${event.id}`;
+      if (!chinaGroups.has(key)) chinaGroups.set(key, { id: key, events: [], label: city });
+      chinaGroups.get(key).events.push(event);
+    });
+
+    const groupedChina = [...chinaGroups.values()].map((group) => ({
+      ...group,
+      lon: d3.mean(group.events, (event) => event.lon),
+      lat: d3.mean(group.events, (event) => event.lat)
+    }));
+    const clusters = [...groupedChina, ...overseas].map((cluster) => {
+      const point = this.projection([cluster.lon, cluster.lat]);
+      return point ? { ...cluster, x: point[0], y: point[1] } : null;
+    }).filter(Boolean);
 
     const groups = this.markerLayer
       .selectAll('g.map-node')
@@ -375,6 +389,7 @@ export class EventGlobe {
       .attr('class', 'map-node');
 
     enter.append('circle').attr('class', 'node-body');
+    enter.append('circle').attr('class', 'node-orbit');
     enter.append('circle').attr('class', 'node-core');
     enter.append('text').attr('class', 'node-count');
     enter.append('text').attr('class', 'node-label');
@@ -383,6 +398,8 @@ export class EventGlobe {
       .merge(groups)
       .attr('transform', (d) => `translate(${d.x}, ${d.y})`)
       .classed('is-cluster', (d) => d.events.length > 1)
+      .classed('is-china-light', (d) => this.isChinaEvent(d.events[0]))
+      .classed('is-selected', (d) => d.events.length === 1 && d.events[0].id === this.selectedEventId)
       .style('cursor', 'pointer')
       .on('mouseenter', () => {
         // 悬停时暂停自动旋转，方便点击
@@ -399,14 +416,6 @@ export class EventGlobe {
         event.stopPropagation();
 
         if (cluster.events.length > 1) {
-          // 小聚合（≤5 个事件）：强制展开为独立节点
-          if (cluster.events.length <= 5) {
-            this._expandedClusterId = cluster.id;
-            this.zoomIntoCluster(cluster);
-            this.renderMarkers();
-            this.onClusterSelect?.(cluster);
-            return;
-          }
           this.zoomIntoCluster(cluster);
           this.onClusterSelect?.(cluster);
           return;
@@ -415,25 +424,36 @@ export class EventGlobe {
         const selected = cluster.events[0];
         this.selectedEventId = selected.id;
         this._expandedClusterId = null;
+        this.zoomToEvent(selected);
         this.renderMarkers();
         this.onEventSelect?.(selected);
       });
 
     merged
       .select('.node-body')
-      .attr('r', (d) => (d.events.length > 1 ? 13 : 6.5))
+      .attr('r', (d) => this.isChinaEvent(d.events[0]) ? Math.min(14, 2.5 + Math.sqrt(d.events.length) * 1.35) : 6.2)
       .attr('fill', (d) =>
-        d.events.length > 1
-          ? '#e7f3fa'
+        this.isChinaEvent(d.events[0])
+          ? '#ffffff'
+          : d.events.length > 1
+          ? 'rgba(5, 20, 34, 0.92)'
           : this.categoryColor(d.events[0].category)
       )
-      .attr('stroke', '#06101c')
-      .attr('stroke-width', 2.2)
+      .attr('stroke', (d) => this.isChinaEvent(d.events[0]) ? this.categoryColor(d.events[0].category) : (d.events.length > 1 ? this.categoryColor(d.events[0].category) : '#06101c'))
+      .attr('stroke-width', (d) => this.isChinaEvent(d.events[0]) ? 0.8 : (d.events.length > 1 ? 1.2 : 2))
       .attr('filter', 'url(#markerGlow)');
 
     merged
+      .select('.node-orbit')
+      .attr('r', (d) => this.isChinaEvent(d.events[0]) ? Math.min(18, 5.5 + Math.sqrt(d.events.length) * 1.45) : 10.5)
+      .attr('fill', 'none')
+      .attr('stroke', (d) => this.categoryColor(d.events[0].category))
+      .attr('stroke-width', (d) => this.isChinaEvent(d.events[0]) ? 0.55 : (d.events.length > 1 ? 1.1 : 0.85))
+      .attr('stroke-dasharray', (d) => d.events.length > 1 ? '2.5 4.5' : 'none');
+
+    merged
       .select('.node-core')
-      .attr('r', (d) => (d.events.length > 1 ? 0 : 2.1))
+      .attr('r', (d) => this.isChinaEvent(d.events[0]) ? 0.9 : (d.events.length > 1 ? 0 : 1.8))
       .attr('fill', '#fff');
 
     merged
@@ -447,11 +467,7 @@ export class EventGlobe {
       .select('.node-label')
       .attr('dx', (d) => (d.events.length > 1 ? 18 : 11))
       .attr('dy', 4)
-      .text((d) =>
-        d.events.length > 1
-          ? `${d.events[0].city} · ${d.events.length} 场`
-          : d.events[0].city
-      );
+      .text((d) => d.events.length > 1 && d.label ? `${d.label} · ${d.events.length} 场` : d.label);
 
     // 独立的脉冲圆圈图层，不影响 g.map-node 的边界框稳定性
     const pulseGroups = this.pulseLayer
@@ -476,7 +492,10 @@ export class EventGlobe {
     const startRotation = this.projection.rotate();
     const startScale = this.projection.scale();
     const targetRotation = [-cluster.lon, -cluster.lat, 0];
-    const targetScale = Math.min(440, Math.max(startScale * 1.45, 360));
+    const targetScale = Math.min(
+      MAX_GLOBE_SCALE,
+      Math.max(startScale * 1.7, 520)
+    );
 
     const interpolateRotation = d3.interpolate(startRotation, targetRotation);
     const interpolateScale = d3.interpolateNumber(startScale, targetScale);
@@ -493,6 +512,51 @@ export class EventGlobe {
 
   categoryColor(category) {
     return CATEGORY_COLORS[category] ?? '#b9d2df';
+  }
+
+  normalizeCity(value) {
+    const city = String(value || '')
+      .replace(/（[^）]*）/g, '')
+      .replace(/\([^)]*\)/g, '')
+      .trim();
+    return city && !city.includes('未公开') ? city : '';
+  }
+
+  locationLabel(event) {
+    const city = this.normalizeCity(event.city);
+    if (city) return city;
+    return this.isChinaEvent(event) ? '' : String(event.country || '').trim();
+  }
+
+  zoomToEvent(event) {
+    this.zoomToCoordinate(event.lon, event.lat);
+  }
+
+  zoomToCoordinate(lon, lat) {
+    const startRotation = this.projection.rotate();
+    const startScale = this.projection.scale();
+    const targetRotation = [-lon, -lat, 0];
+    const targetScale = Math.min(
+      MAX_GLOBE_SCALE,
+      Math.max(startScale * 1.55, 620)
+    );
+    const interpolateRotation = d3.interpolate(startRotation, targetRotation);
+    const interpolateScale = d3.interpolateNumber(startScale, targetScale);
+
+    d3.transition()
+      .duration(720)
+      .ease(d3.easeCubicInOut)
+      .tween('event-focus', () => (t) => {
+        this.projection
+          .rotate(interpolateRotation(t))
+          .scale(interpolateScale(t));
+        this.render();
+      });
+  }
+
+  isChinaEvent(event) {
+    return event.country === '中国'
+      || (event.lon >= 73 && event.lon <= 135 && event.lat >= 17 && event.lat <= 54);
   }
 
   isFront(lon, lat) {
@@ -527,17 +591,32 @@ export class EventGlobe {
     return d3.geoDistance([lon, lat], this.solarPoint()) > Math.PI / 2;
   }
 
-  setFilters({ year = 'all', category = 'all' }) {
+  setFilters({ startDate = '', endDate = '', location = '', categories = [], keyword = '' } = {}) {
+    const normalizedLocation = location.toLocaleLowerCase();
+    const normalizedKeyword = keyword.toLocaleLowerCase();
     this.filteredEvents = this.events.filter((event) => {
-      const yearMatch = year === 'all' || String(event.year) === String(year);
-      const categoryMatch = category === 'all' || event.category === category;
-      return yearMatch && categoryMatch;
+      const eventDates = Array.isArray(event.dates) && event.dates.length
+        ? event.dates.map((item) => item.date).filter(Boolean)
+        : event.date ? [event.date.split('~')[0].trim()] : [];
+      const dateMatch = eventDates.some((date) => (!startDate || date >= startDate) && (!endDate || date <= endDate));
+      const categoryMatch = !categories.length ? false : categories.includes(event.category);
+      const locationText = [event.country, event.city, event.venue].filter(Boolean).join(' ').toLocaleLowerCase();
+      const keywordText = [event.title, event.category, event.country, event.city, event.venue, event.role, event.description]
+        .filter(Boolean).join(' ').toLocaleLowerCase();
+      return dateMatch && categoryMatch && (!normalizedLocation || locationText.includes(normalizedLocation)) && (!normalizedKeyword || keywordText.includes(normalizedKeyword));
     });
 
     this.selectedEventId = null;
     this._expandedClusterId = null;
     this.renderMarkers();
     return this.filteredEvents;
+  }
+
+  resetView() {
+    this.projection.rotate([...this.initialRotation]).scale(this.baseScale);
+    this.selectedEventId = null;
+    this._expandedClusterId = null;
+    this.render();
   }
 
   setAutoRotate(value) {
@@ -592,12 +671,20 @@ export class EventGlobe {
       this.lastFrame = now;
       this.pulsePhase += dt * 0.004;
 
-      const pulse = 0.5 + 0.5 * Math.sin(this.pulsePhase);
-
       this.pulseLayer
         .selectAll('.node-pulse')
-        .attr('r', (d) => (d.events.length > 1 ? 18 : 12) + pulse * 4)
-        .attr('opacity', 0.08 + pulse * 0.26)
+        .attr('r', (d) => {
+          const offset = [...String(d.id)].reduce((sum, char) => sum + char.charCodeAt(0), 0) * 0.17;
+          const pulse = 0.5 + 0.5 * Math.sin(this.pulsePhase + offset);
+          return this.isChinaEvent(d.events[0])
+            ? Math.min(18, 4 + Math.sqrt(d.events.length) * 1.45) + pulse * 4
+            : 12 + pulse * 4;
+        })
+        .attr('opacity', (d) => {
+          const offset = [...String(d.id)].reduce((sum, char) => sum + char.charCodeAt(0), 0) * 0.17;
+          const pulse = 0.5 + 0.5 * Math.sin(this.pulsePhase + offset);
+          return this.isChinaEvent(d.events[0]) ? 0.08 + pulse * 0.48 : 0.08 + pulse * 0.26;
+        })
         .attr('fill', (d) =>
           d.events.length > 1
             ? '#dff4ff'

@@ -58,12 +58,19 @@ select {
 
 #globe {
   display: block;
-  width: 100%;
+  width: calc(100% - 328px);
   height: 100vh;
+  margin-left: 328px;
   touch-action: none;
   cursor: grab;
   position: relative;
   z-index: 1;
+  transition: width 320ms ease, margin-left 320ms ease;
+}
+
+.sidebar-collapsed #globe {
+  width: 100%;
+  margin-left: 0;
 }
 
 #globe:active {
@@ -213,8 +220,10 @@ select:focus {
   position: absolute;
   z-index: 30;
   left: 30px;
-  bottom: 28px;
+  bottom: 108px;
   width: 360px;
+  max-height: calc(100vh - 210px);
+  overflow: auto;
   padding: 18px;
   border: 1px solid rgba(155, 192, 216, 0.16);
   border-radius: 16px;
@@ -404,4 +413,434 @@ select:focus {
   fill: rgba(255, 179, 71, 0.18);
   stroke: rgba(255, 159, 28, 0.8);
   stroke-width: 1.8px;
+}
+
+/* ── 主页面可收起筛选面板 ── */
+.app-shell {
+  display: block;
+  position: relative;
+  min-height: 100vh;
+}
+
+.topbar {
+  position: absolute;
+  z-index: 24;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 78px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px 0 352px;
+  pointer-events: none;
+  transition: padding-left 320ms ease;
+}
+
+.sidebar-collapsed .topbar {
+  padding-left: 96px;
+}
+
+.topbar .brand {
+  position: static;
+  pointer-events: none;
+}
+
+.topbar-actions {
+  display: flex;
+  gap: 9px;
+  pointer-events: auto;
+}
+
+.sidebar {
+  position: absolute;
+  z-index: 40;
+  top: 18px;
+  left: 18px;
+  bottom: 18px;
+  width: 310px;
+  padding: 20px;
+  overflow-y: auto;
+  border: 1px solid rgba(141, 190, 217, .16);
+  border-radius: 18px;
+  background: rgba(5, 17, 30, .93);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, .34);
+  backdrop-filter: blur(22px);
+  transition: transform 320ms ease, opacity 240ms ease;
+}
+
+.sidebar.hidden-panel {
+  transform: translateX(calc(-100% - 24px));
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sidebar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(98, 142, 168, .45) transparent;
+}
+
+.sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(98, 142, 168, .45);
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.sidebar h2 {
+  margin: 0;
+}
+
+.filter-summary {
+  margin-top: 6px;
+  color: #7891a5;
+  font-size: 12px;
+}
+
+.icon-button,
+.panel-toggle {
+  border: 1px solid #29465d;
+  border-radius: 10px;
+  background: rgba(13, 36, 55, .88);
+  color: #c8dae5;
+  cursor: pointer;
+}
+
+.icon-button {
+  width: 34px;
+  height: 34px;
+  font-size: 22px;
+}
+
+.panel-toggle {
+  position: absolute;
+  z-index: 42;
+  top: 92px;
+  left: 68px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 13px;
+}
+
+.panel-toggle.hidden {
+  display: none;
+}
+
+body:has(.app-shell:not(.sidebar-collapsed)) .navigation-rail {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.control-group {
+  margin: 0;
+  padding: 15px 0;
+  border-top: 1px solid rgba(141, 190, 217, .11);
+}
+
+.control-group label,
+.category-fieldset legend {
+  display: block;
+  margin-bottom: 8px;
+  color: #90a7b7;
+  font-size: 12px;
+}
+
+.sidebar input[type="search"],
+.sidebar input[type="date"] {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid #20394d;
+  border-radius: 9px;
+  outline: none;
+  background: #0d1e30;
+  color: #e4f0f6;
+}
+
+.sidebar input:focus {
+  border-color: #4fa9d3;
+  box-shadow: 0 0 0 3px rgba(79, 169, 211, .1);
+}
+
+.input-with-icon {
+  position: relative;
+}
+
+.input-with-icon span {
+  position: absolute;
+  left: 10px;
+  top: 7px;
+  color: #668195;
+  font-size: 18px;
+}
+
+.input-with-icon input {
+  padding-left: 34px !important;
+}
+
+.date-range {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  color: #688296;
+}
+
+.date-range input {
+  font-size: 11px;
+}
+
+.category-fieldset {
+  min-width: 0;
+  margin: 0;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+}
+
+.category-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 7px;
+}
+
+.category-option {
+  display: flex !important;
+  align-items: center;
+  gap: 7px;
+  margin: 0 !important;
+  color: #cbd9e2 !important;
+  cursor: pointer;
+}
+
+.category-option input {
+  accent-color: #49c5e6;
+}
+
+.category-color {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  box-shadow: 0 0 7px currentColor;
+}
+
+.category-musical { color: #ff5d8f; background: currentColor; }
+.category-variety { color: #42c9e8; background: currentColor; }
+.category-gala { color: #f5bd4f; background: currentColor; }
+.category-concert { color: #9c7cff; background: currentColor; }
+.category-other { color: #63d6a5; background: currentColor; }
+
+.filter-actions {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.primary-button {
+  border-color: rgba(76, 198, 232, .44);
+  background: linear-gradient(135deg, rgba(34, 132, 173, .86), rgba(38, 97, 139, .92));
+}
+
+.reset-button span {
+  margin-right: 4px;
+  font-size: 16px;
+}
+
+.sidebar-divider {
+  height: 1px;
+  margin: 20px 0 16px;
+  background: rgba(141, 190, 217, .11);
+}
+
+.switches {
+  margin: 0;
+}
+
+.compact-legend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 20px;
+}
+
+.cluster-demo {
+  display: inline-grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border: 1px dotted #42c9e8;
+  border-radius: 50%;
+  color: #d7f4fb;
+  font-size: 9px;
+}
+
+.active-filter-bar {
+  position: absolute;
+  z-index: 22;
+  left: calc(50% + 164px);
+  bottom: 106px;
+  transform: translateX(-50%);
+  padding: 8px 13px;
+  border: 1px solid rgba(141, 190, 217, .13);
+  border-radius: 999px;
+  background: rgba(5, 17, 30, .78);
+  color: #819aab;
+  font-size: 11px;
+  backdrop-filter: blur(14px);
+  pointer-events: none;
+  transition: left 320ms ease;
+}
+
+.app-shell:not(.sidebar-collapsed) .event-timeline {
+  left: calc(50% + 164px);
+  width: min(700px, calc(100vw - 390px));
+}
+
+.sidebar-collapsed .active-filter-bar {
+  left: 50%;
+}
+
+.event-card {
+  left: 348px;
+  transition: left 320ms ease;
+}
+
+.sidebar-collapsed .event-card {
+  left: 30px;
+}
+
+/* ── 新节点视觉：发光核心 + 轨道环 + 聚合虚线环 ── */
+.map-node .node-body,
+.map-node .node-orbit,
+.map-node .node-core {
+  transition: r 180ms ease, stroke-width 180ms ease, opacity 180ms ease;
+}
+
+.map-node .node-orbit {
+  opacity: .52;
+  filter: url(#markerGlow);
+}
+
+.map-node.is-china-light .node-orbit {
+  opacity: .28;
+}
+
+.map-node.is-china-light .node-body {
+  filter: url(#markerGlow);
+}
+
+.map-node.is-china-light .node-label {
+  opacity: 0;
+}
+
+.map-node.is-china-light:hover .node-label,
+.map-node.is-china-light.is-selected .node-label {
+  opacity: 1;
+}
+
+.map-node:not(.is-cluster):hover .node-orbit,
+.map-node.is-selected .node-orbit {
+  opacity: .92;
+  stroke-width: 1.4px;
+}
+
+.map-node:not(.is-cluster):hover .node-body,
+.map-node.is-selected .node-body {
+  stroke-width: 2.8px;
+}
+
+.map-node.is-cluster .node-orbit {
+  animation: clusterOrbit 10s linear infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.node-count {
+  fill: #e7f7ff;
+  font-size: 10px;
+  font-weight: 650;
+  pointer-events: none;
+}
+
+.node-label {
+  opacity: 0;
+  transition: opacity 160ms ease;
+  pointer-events: none;
+}
+
+.labels-visible .map-node .node-label { opacity: .72; }
+
+.labels-visible .map-node:hover .node-label,
+.labels-visible .map-node.is-selected .node-label { opacity: 1; }
+
+@keyframes clusterOrbit {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 760px) {
+  .topbar {
+    height: 68px;
+    padding: 0 14px;
+  }
+
+  .brand-subtitle,
+  .topbar-actions .ui-button:first-child {
+    display: none;
+  }
+
+  .sidebar {
+    top: 72px;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    width: auto;
+  }
+
+  .panel-toggle {
+    top: 80px;
+    left: 12px;
+  }
+
+  .active-filter-bar {
+    left: 50%;
+    bottom: 104px;
+    max-width: calc(100% - 24px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .app-shell:not(.sidebar-collapsed) .event-timeline {
+    left: 50%;
+    width: calc(100vw - 20px);
+  }
+
+  #globe,
+  .sidebar-collapsed #globe {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .event-card,
+  .sidebar-collapsed .event-card {
+    left: 14px;
+    right: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-node.is-cluster .node-orbit {
+    animation: none;
+  }
 }
