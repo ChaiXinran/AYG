@@ -63,9 +63,9 @@ export class EventGlobe {
       .attr('cx', '45%')
       .attr('cy', '40%');
 
-    spaceGradient.append('stop').attr('offset', '0%').attr('stop-color', '#0d2037');
-    spaceGradient.append('stop').attr('offset', '55%').attr('stop-color', '#071423');
-    spaceGradient.append('stop').attr('offset', '100%').attr('stop-color', '#020711');
+    spaceGradient.append('stop').attr('offset', '0%').attr('stop-color', 'rgba(13,32,55,0.55)');
+    spaceGradient.append('stop').attr('offset', '55%').attr('stop-color', 'rgba(7,20,35,0.72)');
+    spaceGradient.append('stop').attr('offset', '100%').attr('stop-color', 'rgba(2,7,17,0.95)');
 
     const oceanGradient = defs
       .append('radialGradient')
@@ -119,6 +119,15 @@ export class EventGlobe {
       .attr('height', this.height)
       .attr('fill', 'url(#spaceGradient)');
 
+    // 背景图（降低透明度，铺满 SVG）
+    this.svg
+      .append('image')
+      .attr('href', './background/ayg8.jpg')
+      .attr('width', '100%')
+      .attr('height', '100%')
+      .attr('preserveAspectRatio', 'xMidYMid slice')
+      .attr('opacity', 0.35);
+
     this.buildStars();
 
     this.svg
@@ -158,7 +167,7 @@ export class EventGlobe {
 
     // 中国高亮层：hover 整块变亮，点击切换平面地图
     if (this.onChinaClick) {
-      const chinaFeature = this.countries.features.find((f) => f.id === '156');
+      const chinaFeature = this.countries.features.find((f) => String(f.id) === '156');
       if (chinaFeature) {
         this.chinaHighlight = this.chinaHighlightLayer
           .append('path')

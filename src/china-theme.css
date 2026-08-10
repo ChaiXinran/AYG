@@ -8,25 +8,140 @@ html, body {
   display: block;
 }
 
+.china-background-image {
+  opacity: .18;
+  filter: saturate(.72) contrast(1.08);
+}
+
+.province-map-layer {
+  filter: drop-shadow(0 12px 24px rgba(0, 10, 22, .32));
+}
+
 .china-province {
-  transition: filter 160ms ease, stroke 160ms ease;
+  transition: filter 180ms ease, stroke 180ms ease, opacity 180ms ease;
 }
 
 .china-province:hover {
-  filter: brightness(1.18);
+  filter: brightness(1.22) saturate(1.12);
+  stroke: #a8e4ff;
+  opacity: .98;
+}
+
+.province-label {
+  fill: rgba(214, 236, 247, .72);
+  font-size: 8.5px;
+  font-weight: 500;
+  opacity: 0;
+  letter-spacing: .1px;
+  paint-order: stroke;
+  stroke: rgba(4, 17, 30, .88);
+  stroke-width: 2.4px;
+  stroke-linejoin: round;
+  transition: opacity 240ms ease;
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(var(--map-inverse-scale, 1));
+}
+
+.china-map-viewport.is-zoomed .province-label.is-selected {
+  opacity: 1;
+  fill: #e9f8ff;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.ambient-flow {
+  opacity: .28;
+  stroke-linecap: round;
+  stroke-dasharray: 3 14 36 22;
+  animation: ambientFlow 12s linear infinite;
+  pointer-events: none;
+}
+
+.ambient-flow-2 {
+  opacity: .2;
+  animation-duration: 16s;
+  animation-direction: reverse;
+}
+
+.ambient-flow-3 {
+  opacity: .16;
+  animation-duration: 20s;
+}
+
+.ambient-city-halo {
+  fill: #8bdcff;
+  opacity: .16;
+  filter: blur(1.6px);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: cityGlow 3.1s ease-in-out infinite;
+  animation-delay: var(--city-delay);
+}
+
+.ambient-city-core {
+  fill: #d9f4ff;
+  opacity: .72;
+  filter: drop-shadow(0 0 3px #70d7ff);
+  animation: cityCore 2.6s ease-in-out infinite;
+  animation-delay: var(--city-delay);
 }
 
 .event-node-pulse {
-  animation: chinaPulse 2s infinite ease-out;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: chinaPulse 2.2s infinite ease-out;
+  pointer-events: none;
+}
+
+.event-node-visual {
+  transform: scale(var(--map-inverse-scale, 1));
+  transition: transform 720ms cubic-bezier(.65, 0, .35, 1);
+}
+
+.event-node-halo {
+  opacity: .2;
+  filter: blur(2px);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: chinaHalo 1.8s infinite ease-in-out;
+  pointer-events: none;
+}
+
+.event-node-core {
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, .45));
+}
+
+@keyframes ambientFlow {
+  to { stroke-dashoffset: -150; }
+}
+
+@keyframes cityGlow {
+  0%, 100% { opacity: .1; transform: scale(.7); }
+  50% { opacity: .34; transform: scale(1.35); }
+}
+
+@keyframes cityCore {
+  0%, 100% { opacity: .52; }
+  50% { opacity: .95; }
 }
 
 @keyframes chinaPulse {
-  from {
-    opacity: .45;
-    r: 6px;
-  }
-  to {
-    opacity: 0;
-    r: 18px;
+  0% { opacity: .75; transform: scale(.75); }
+  75%, 100% { opacity: 0; transform: scale(2.6); }
+}
+
+@keyframes chinaHalo {
+  0%, 100% { opacity: .12; transform: scale(.9); }
+  50% { opacity: .34; transform: scale(1.18); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .event-node-pulse,
+  .event-node-halo,
+  .ambient-flow,
+  .ambient-city-halo,
+  .ambient-city-core {
+    animation: none;
   }
 }

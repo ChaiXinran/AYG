@@ -9,6 +9,22 @@ const CATEGORY_COLORS = {
   晚会: '#f5bd4f'
 };
 
+const PROVINCE_COLORS = ['#173f5f', '#1b496b', '#205374', '#245c7d', '#2a6687', '#30708f'];
+
+const AMBIENT_CITIES = [
+  [116.41, 39.90], [121.47, 31.23], [113.26, 23.13], [114.06, 22.55],
+  [104.07, 30.67], [106.55, 29.56], [114.31, 30.59], [112.94, 28.23],
+  [118.80, 32.06], [120.16, 30.27], [117.20, 39.13], [108.94, 34.34],
+  [123.43, 41.80], [126.64, 45.76], [87.62, 43.82], [91.13, 29.65],
+  [102.71, 25.04], [106.63, 26.65], [110.20, 20.04], [119.30, 26.08]
+];
+
+function provinceColor(feature) {
+  const key = String(feature.properties?.adcode || feature.properties?.name || '');
+  const hash = [...key].reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  return PROVINCE_COLORS[hash % PROVINCE_COLORS.length];
+}
+
 export class ChinaMap {
   constructor({ container, events, onBack }) {
     this.container = d3.select(container);
@@ -16,6 +32,9 @@ export class ChinaMap {
     this.onBack = onBack;
     this.provinceFeatures = [];
     this.selectedEventId = null;
+    this.selectedProvince = null;
+    this.mapViewport = null;
+    this.mapTitle = null;
   }
 
   setProvinceData(features) {
@@ -36,9 +55,23 @@ export class ChinaMap {
     // ── 背景渐变（和地球星空一致） ──
     const defs = svg.append('defs');
     const bgGrad = defs.append('radialGradient').attr('id', 'cmBg');
-    bgGrad.append('stop').attr('offset', '0%').attr('stop-color', '#0d2037');
+    bgGrad.append('stop').attr('offset', '0%').attr('stop-color', '#132b45');
     bgGrad.append('stop').attr('offset', '100%').attr('stop-color', '#030914');
     svg.append('rect').attr('width', W).attr('height', H).attr('fill', 'url(#cmBg)');
+
+    svg.append('image')
+      .attr('class', 'china-background-image')
+      .attr('href', './background/ayg8.jpg')
+      .attr('width', W)
+      .attr('height', H)
+      .attr('preserveAspectRatio', 'xMidYMid slice');
+    svg.append('rect').attr('width', W).attr('height', H).attr('fill', 'url(#cmBg)').attr('opacity', 0.72);
+
+    const mapGlow = defs.append('filter').attr('id', 'cmMapGlow').attr('x', '-40%').attr('y', '-40%').attr('width', '180%').attr('height', '180%');
+    mapGlow.append('feGaussianBlur').attr('stdDeviation', 5).attr('result', 'blur');
+    const glowMerge = mapGlow.append('feMerge');
+    glowMerge.append('feMergeNode').attr('in', 'blur');
+    glowMerge.append('feMergeNode').attr('in', 'SourceGraphic');
 
     // 星点
     const pseudo = (s) => { const x = Math.sin(s * 999.91) * 43758.5453; return x - Math.floor(x); };
@@ -49,14 +82,27 @@ export class ChinaMap {
     // ── 投影 ──
     const proj = d3.geoMercator().center([104, 36]).scale(560).translate([W / 2, H / 2 + 15]);
     const path = d3.geoPath(proj);
+    this.mapViewport = svg.append('g').attr('class', 'china-map-viewport');
+
+    svg.on('click', () => this.resetProvinceZoom());
+
+    const chinaClip = defs.append('clipPath').attr('id', 'chinaShapeClip');
+    chinaClip.selectAll('path').data(this.provinceFeatures).join('path').attr('d', path);
 
     // ── 省区 ──
-    const pg = svg.append('g');
+    const pg = this.mapViewport.append('g').attr('class', 'province-map-layer');
     pg.selectAll('path').data(this.provinceFeatures).join('path')
+      .attr('class', 'china-province')
       .attr('d', path)
-      .attr('fill', (_, i) => i % 2 === 0 ? '#1a4a68' : '#1e5278')
-      .attr('stroke', '#4a80a0')
-      .attr('stroke-width', 1.4)
+      .attr('fill', provinceColor)
+      .attr('stroke', '#70a9c5')
+      .attr('stroke-width', 0.62)
+      .attr('vector-effect', 'non-scaling-stroke')
+      .style('cursor', 'pointer')
+      .on('click', (event, feature) => {
+        event.stopPropagation();
+        this.zoomToProvince(feature, path);
+      })
       .append('title').text((d) => d.properties?.name || '');
 
     // 中国国界加粗轮廓（叠加在省区之上）
@@ -64,33 +110,108 @@ export class ChinaMap {
       .attr('d', path)
       .attr('fill', 'none')
       .attr('stroke', '#6aa8c8')
-      .attr('stroke-width', 2.4)
+      .attr('stroke-width', 1.15)
+      .attr('vector-effect', 'non-scaling-stroke')
       .attr('pointer-events', 'none');
 
-    // 省名
-    pg.selectAll('text').data(this.provinceFeatures).join('text')
-      .attr('x', (d) => { const c = path.centroid(d); return c[0]; })
-      .attr('y', (d) => { const c = path.centroid(d); return c[1] + 4; })
-      .attr('text-anchor', 'middle').attr('fill', '#8aa8b8')
-      .attr('font-size', (d) => (d.properties?.name || '').length > 4 ? 10 : 11)
+    this.provinceLabels = pg.selectAll('text.province-label').data(this.provinceFeatures).join('text')
+      .attr('class', 'province-label')
+      .attr('x', (feature) => path.centroid(feature)[0])
+      .attr('y', (feature) => path.centroid(feature)[1] + 3)
+      .attr('text-anchor', 'middle')
       .attr('pointer-events', 'none')
-      .text((d) => d.properties?.name || '');
+      .text((feature) => feature.properties?.name || '');
+
+    this.renderAmbientFlow(this.mapViewport);
+    this.renderCityGlow(this.mapViewport, proj);
 
     // ── 南海诸岛 ──
     this.renderSouthChinaSea(svg, proj, path);
 
     // ── 事件标点 ──
-    this.renderMarkers(svg, proj);
+    this.renderMarkers(this.mapViewport, proj);
 
     // ── 标题栏 ──
     const hdr = svg.append('g');
-    hdr.append('text').attr('x', 30).attr('y', 40).attr('fill', '#eef6fb').attr('font-size', 20).attr('font-weight', 650).text('中国');
-    const back = hdr.append('g').attr('transform', `translate(${W - 100}, 18)`).style('cursor', 'pointer').on('click', () => this.onBack?.());
+    this.mapTitle = hdr.append('text').attr('x', 30).attr('y', 40).attr('fill', '#eef6fb').attr('font-size', 20).attr('font-weight', 650).text('中国');
+    const back = hdr.append('g').attr('transform', `translate(${W - 100}, 18)`).style('cursor', 'pointer').on('click', (event) => {
+      event.stopPropagation();
+      this.onBack?.();
+    });
     back.append('rect').attr('width', 76).attr('height', 32).attr('rx', 8).attr('fill', '#0d1e30').attr('stroke', '#2a5068').attr('stroke-width', 1);
     back.append('text').attr('x', 38).attr('y', 21).attr('text-anchor', 'middle').attr('fill', '#c0d0d8').attr('font-size', 13).text('← 返回');
 
     // ── 事件卡片 ──
     this.renderEventCard(svg);
+  }
+
+  zoomToProvince(feature, path) {
+    const name = feature.properties?.name || '省区';
+    if (this.selectedProvince === name) {
+      this.resetProvinceZoom();
+      return;
+    }
+
+    const [[x0, y0], [x1, y1]] = path.bounds(feature);
+    const width = Math.max(1, x1 - x0);
+    const height = Math.max(1, y1 - y0);
+    const scale = Math.min(3.8, Math.max(1.35, 0.72 / Math.max(width / W, height / H)));
+    const centerX = (x0 + x1) / 2;
+    const centerY = (y0 + y1) / 2;
+
+    this.selectedProvince = name;
+    this.mapTitle?.text(`中国 · ${name}`);
+    this.mapViewport.classed('is-zoomed', true);
+    this.mapViewport.style('--map-inverse-scale', 1 / scale);
+    this.provinceLabels?.classed('is-selected', (item) => item.properties?.name === name);
+    this.mapViewport
+      .transition()
+      .duration(720)
+      .ease(d3.easeCubicInOut)
+      .attr('transform', `translate(${W / 2},${H / 2}) scale(${scale}) translate(${-centerX},${-centerY})`);
+  }
+
+  resetProvinceZoom() {
+    if (!this.selectedProvince) return;
+    this.selectedProvince = null;
+    this.mapTitle?.text('中国');
+    this.mapViewport?.classed('is-zoomed', false);
+    this.mapViewport?.style('--map-inverse-scale', 1);
+    this.provinceLabels?.classed('is-selected', false);
+    this.mapViewport
+      ?.transition()
+      .duration(620)
+      .ease(d3.easeCubicInOut)
+      .attr('transform', null);
+  }
+
+  renderAmbientFlow(svg) {
+    const flow = svg.append('g').attr('clip-path', 'url(#chinaShapeClip)').attr('class', 'ambient-flow-layer');
+    const lines = [
+      'M250,430 C390,300 540,300 730,205',
+      'M300,500 C420,430 555,420 710,320',
+      'M320,245 C450,335 590,330 735,410'
+    ];
+    flow.selectAll('path').data(lines).join('path')
+      .attr('class', (_, i) => `ambient-flow ambient-flow-${i + 1}`)
+      .attr('d', (d) => d)
+      .attr('fill', 'none')
+      .attr('stroke', '#7ed8ff')
+      .attr('stroke-width', (_, i) => 1.2 + i * 0.35)
+      .attr('filter', 'url(#cmMapGlow)');
+  }
+
+  renderCityGlow(svg, proj) {
+    const cities = AMBIENT_CITIES.map(([lon, lat], index) => {
+      const [x, y] = proj([lon, lat]);
+      return { x, y, index };
+    });
+    const layer = svg.append('g').attr('class', 'ambient-city-layer').attr('pointer-events', 'none');
+    const city = layer.selectAll('g').data(cities).join('g')
+      .attr('transform', (d) => `translate(${d.x},${d.y})`)
+      .style('--city-delay', (d) => `${-(d.index % 7) * 0.38}s`);
+    city.append('circle').attr('class', 'ambient-city-halo').attr('r', 4.5);
+    city.append('circle').attr('class', 'ambient-city-core').attr('r', 1.15);
   }
 
   // ═══ 事件标点 ═══
@@ -102,9 +223,25 @@ export class ChinaMap {
       .style('cursor', 'pointer')
       .on('click', (ev, d) => { ev.stopPropagation(); this.selectEvent(d); });
 
-    nodes.append('circle').attr('r', 8).attr('fill', (d) => CATEGORY_COLORS[d.category] || '#b9d2df').attr('opacity', 0.22);
-    nodes.append('circle').attr('r', 5.5).attr('fill', (d) => CATEGORY_COLORS[d.category] || '#b9d2df').attr('stroke', '#06101c').attr('stroke-width', 2);
-    nodes.append('text').attr('dx', 9).attr('dy', 4).attr('fill', '#eef6fb').attr('font-size', 11)
+    const visuals = nodes.append('g').attr('class', 'event-node-visual');
+
+    visuals.append('circle')
+      .attr('class', 'event-node-pulse')
+      .attr('r', 7)
+      .attr('fill', 'none')
+      .attr('stroke', (d) => CATEGORY_COLORS[d.category] || '#b9d2df')
+      .attr('stroke-width', 2);
+    visuals.append('circle')
+      .attr('class', 'event-node-halo')
+      .attr('r', 9)
+      .attr('fill', (d) => CATEGORY_COLORS[d.category] || '#b9d2df');
+    visuals.append('circle')
+      .attr('class', 'event-node-core')
+      .attr('r', 5.5)
+      .attr('fill', (d) => CATEGORY_COLORS[d.category] || '#b9d2df')
+      .attr('stroke', '#06101c')
+      .attr('stroke-width', 2);
+    visuals.append('text').attr('dx', 9).attr('dy', 4).attr('fill', '#eef6fb').attr('font-size', 11)
       .attr('paint-order', 'stroke').attr('stroke', '#06101c').attr('stroke-width', 4).attr('stroke-linejoin', 'round')
       .text((d) => d.city);
   }
@@ -115,7 +252,7 @@ export class ChinaMap {
     card.classed('hidden', false);
     card.select('#cmCat').text(d.category);
     card.select('#cmTitle').text(d.title);
-    card.select('#cmMeta').text(`${d.date} · ${d.city} · ${d.venue}`);
+    card.select('#cmMeta').text(`${d.dateLabel || d.date} · ${d.city} · ${d.venue}${d.role ? ' · ' + d.role : ''}`);
     card.select('#cmDesc').text(d.description);
   }
 

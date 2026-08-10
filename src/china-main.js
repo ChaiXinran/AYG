@@ -1,4 +1,5 @@
 import { ChinaMap } from './chinaMap.js';
+import { loadChinaProvinces } from './chinaMapData.js';
 import { events } from './data/events.js';
 
 async function init() {
@@ -8,12 +9,9 @@ async function init() {
 
   let features = [];
   try {
-    const resp = await fetch(
-      'https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json'
-    );
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const data = await resp.json();
+    const data = await loadChinaProvinces();
     features = data.features || [];
+    if (!features.length) throw new Error('GeoJSON 中没有省区数据');
   } catch (e) {
     document.body.innerHTML =
       `<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#c06060;font-family:system-ui,sans-serif;font-size:15px;">省区数据加载失败，请刷新重试<br><small>${e.message}</small></div>`;
@@ -24,7 +22,7 @@ async function init() {
     container: document.body,
     events,
     onBack: () => {
-      window.location.href = '/index.html';
+      window.location.href = './index.html';
     }
   });
   map.setProvinceData(features);
