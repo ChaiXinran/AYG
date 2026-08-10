@@ -1,9 +1,11 @@
-import { EventGlobe } from './globe.js';
+import { EventGlobe } from './globe.js?v=29';
 import { loadChinaProvinces } from './chinaMapData.js';
-import { events } from './data/events.js';
+import { events } from './data/allEvents.js?v=29';
 import { cityLights } from './data/cities.js';
+import { EventTimeline } from './components/timeline/EventTimeline.js';
+import { fillEventLinks } from './components/event-details/eventLinks.js';
+import { NavigationRail } from './components/navigation/NavigationRail.js';
 
-// 加载省区数据（球面渲染用）
 async function loadProvinceData() {
   try {
     const data = await loadChinaProvinces();
@@ -14,111 +16,140 @@ async function loadProvinceData() {
   }
 }
 
+function getEventDates(event) {
+  if (Array.isArray(event.dates) && event.dates.length) return event.dates.map((item) => item.date).filter(Boolean);
+  if (!event.date) return [];
+  return [event.date.split('~')[0].trim()];
+}
+
+const availableDates = events.flatMap(getEventDates).sort();
+const defaultStartDate = availableDates[0] || '2024-01-01';
+const defaultEndDate = availableDates.at(-1) || '2026-12-31';
+const categories = [...new Set(events.map((event) => event.category))];
+const locations = [...new Set(events.flatMap((event) => [event.country, event.city, event.venue]).filter(Boolean))].sort();
+const categoryClass = (category) => ({ 音乐剧: 'musical', 综艺: 'variety', 晚会: 'gala', 音乐会: 'concert' }[category] || 'other');
+
 const app = document.querySelector('#app');
 
 app.innerHTML = `
-  <div class="app-shell">
+  <div class="app-shell sidebar-collapsed">
     <main class="globe-panel">
-      <div class="brand">
-        <div class="brand-title">MY EVENT EARTH</div>
-        <div class="brand-subtitle">拖动旋转 · 滚轮缩放 · 点击聚合节点继续放大</div>
-      </div>
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-title">MY EVENT EARTH</div>
+          <div class="brand-subtitle">从世界地图出发，找到一场演出留下的所有痕迹</div>
+        </div>
+        <div class="topbar-actions">
+          <button class="ui-button" type="button">+ 添加活动</button>
+          <button class="ui-button" type="button">登录</button>
+        </div>
+      </header>
+
+      <button id="openSidebar" class="panel-toggle panel-toggle-open" type="button" aria-controls="filterPanel" aria-expanded="false">
+        <span class="toggle-icon">☰</span><span>筛选</span>
+      </button>
+
+      <aside id="filterPanel" class="sidebar hidden-panel" aria-label="活动筛选">
+        <div class="sidebar-header">
+          <div>
+            <h2>探索活动</h2>
+            <div id="filterSummary" class="filter-summary">${events.length} 个节点 · ${new Set(events.map((event) => event.city)).size} 个城市</div>
+          </div>
+          <button id="closeSidebar" class="icon-button" type="button" aria-label="收起筛选面板">‹</button>
+        </div>
+
+        <div class="control-group">
+          <label for="keywordFilter">关键词</label>
+          <div class="input-with-icon">
+            <span aria-hidden="true">⌕</span>
+            <input id="keywordFilter" type="search" placeholder="剧目、演员、场馆……" />
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label>时间范围</label>
+          <div class="date-range">
+            <input id="startDateFilter" type="date" value="${defaultStartDate}" aria-label="开始日期" />
+            <span>—</span>
+            <input id="endDateFilter" type="date" value="${defaultEndDate}" aria-label="结束日期" />
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label for="locationFilter">地点</label>
+          <input id="locationFilter" type="search" list="locationOptions" placeholder="国家、城市或场馆" />
+          <datalist id="locationOptions">${locations.map((location) => `<option value="${location}"></option>`).join('')}</datalist>
+        </div>
+
+        <fieldset class="control-group category-fieldset">
+          <legend>活动种类</legend>
+          <div class="category-options">
+            ${categories.map((category) => `
+              <label class="category-option">
+                <input type="checkbox" name="categoryFilter" value="${category}" checked />
+                <span class="category-color category-${categoryClass(category)}"></span>
+                <span>${category}</span>
+              </label>
+            `).join('')}
+          </div>
+        </fieldset>
+
+        <div class="filter-actions">
+          <button id="applyFilters" class="ui-button primary-button" type="button">应用筛选</button>
+          <button id="resetFilters" class="ui-button reset-button" type="button"><span aria-hidden="true">↺</span> Reset</button>
+        </div>
+
+        <div class="sidebar-divider"></div>
+
+        <div class="switches">
+          <label class="switch-row"><input id="rotateToggle" type="checkbox" checked /><span>自动缓慢旋转</span></label>
+          <label class="switch-row"><input id="nightToggle" type="checkbox" checked /><span>昼夜明暗</span></label>
+          <label class="switch-row"><input id="lightsToggle" type="checkbox" checked /><span>夜侧城市灯光</span></label>
+        </div>
+
+        <div class="legend compact-legend">
+          ${categories.map((category) => `<div class="legend-row"><span class="legend-dot category-${categoryClass(category)}"></span>${category}</div>`).join('')}
+        </div>
+      </aside>
 
       <svg id="globe" aria-label="活动地球"></svg>
 
+      <div id="activeFilterBar" class="active-filter-bar">全球 · ${defaultStartDate.slice(0, 4)}—${defaultEndDate.slice(0, 4)} · 全部类别</div>
+
       <section id="eventCard" class="event-card hidden" aria-live="polite">
         <div class="event-card-header">
-          <div>
-            <div id="cardCategory" class="category-badge"></div>
-            <div id="cardTitle" class="event-title"></div>
-          </div>
+          <div><div id="cardCategory" class="category-badge"></div><div id="cardTitle" class="event-title"></div></div>
           <button id="closeCard" class="close-button" type="button">×</button>
         </div>
-
         <div id="cardMeta" class="event-meta"></div>
         <div id="cardDescription" class="event-description"></div>
-
-        <div class="card-actions">
-          <button type="button" class="ui-button">查看详情</button>
-          <button type="button" class="ui-button">我参加过</button>
-        </div>
+        <div id="cardLinks" class="event-detail-links" hidden></div>
       </section>
     </main>
-
-    <aside class="sidebar">
-      <h2>活动地球</h2>
-
-      <div class="control-group">
-        <label for="yearFilter">年份</label>
-        <select id="yearFilter">
-          <option value="all">全部年份</option>
-          <option value="2026">2026</option>
-          <option value="2025">2025</option>
-          <option value="2024">2024</option>
-        </select>
-      </div>
-
-      <div class="control-group">
-        <label for="categoryFilter">活动类别</label>
-        <select id="categoryFilter">
-          <option value="all">全部类别</option>
-          <option value="音乐剧">音乐剧</option>
-          <option value="综艺">综艺</option>
-          <option value="晚会">晚会</option>
-        </select>
-      </div>
-
-      <div class="switches">
-        <label class="switch-row">
-          <input id="rotateToggle" type="checkbox" checked />
-          自动缓慢旋转
-        </label>
-
-        <label class="switch-row">
-          <input id="nightToggle" type="checkbox" checked />
-          昼夜明暗
-        </label>
-
-        <label class="switch-row">
-          <input id="lightsToggle" type="checkbox" checked />
-          夜侧城市灯光
-        </label>
-      </div>
-
-      <div class="stats">
-        <div class="stat-card">
-          <div class="stat-label">当前活动</div>
-          <div id="eventCount" class="stat-value">${events.length}</div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-label">涉及城市</div>
-          <div id="cityCount" class="stat-value">${new Set(events.map((event) => event.city)).size}</div>
-        </div>
-      </div>
-
-      <div class="legend">
-        <div class="legend-title">节点颜色</div>
-        <div class="legend-row"><span class="legend-dot legend-musical"></span>音乐剧</div>
-        <div class="legend-row"><span class="legend-dot legend-variety"></span>综艺</div>
-        <div class="legend-row"><span class="legend-dot legend-gala"></span>晚会</div>
-      </div>
-
-      <div class="note">
-        当前地球已经包括深蓝海洋、绿色/土黄色大陆、高纬极地区域、实时昼夜近似、夜侧灯光、大气光晕、星空、活动节点脉冲和自动聚合/展开。<br /><br />
-        城市灯光目前是视觉演示点，不是真实人口密度数据。
-      </div>
-    </aside>
   </div>
 `;
 
 const card = document.querySelector('#eventCard');
+new NavigationRail({ container: document.body, active: 'earth' });
+const shell = document.querySelector('.app-shell');
+const sidebar = document.querySelector('#filterPanel');
+const openSidebarButton = document.querySelector('#openSidebar');
+const timeline = new EventTimeline({
+  container: document.querySelector('.globe-panel'),
+  dates: availableDates,
+  onChange: ({ startDate, endDate }) => {
+    document.querySelector('#startDateFilter').value = startDate;
+    document.querySelector('#endDateFilter').value = endDate;
+    applyFilters(false);
+  }
+});
 
 function openEventCard(event) {
   document.querySelector('#cardCategory').textContent = event.category;
   document.querySelector('#cardTitle').textContent = event.title;
   document.querySelector('#cardMeta').textContent = `${event.dateLabel || event.date} · ${event.city} · ${event.venue}${event.role ? ' · ' + event.role : ''}`;
   document.querySelector('#cardDescription').textContent = event.description;
+  fillEventLinks(document.querySelector('#cardLinks'), event);
   card.classList.remove('hidden');
 }
 
@@ -126,11 +157,17 @@ function closeEventCard() {
   card.classList.add('hidden');
 }
 
+function setSidebarCollapsed(collapsed) {
+  shell.classList.toggle('sidebar-collapsed', collapsed);
+  sidebar.classList.toggle('hidden-panel', collapsed);
+  openSidebarButton.classList.toggle('hidden', !collapsed);
+  openSidebarButton.setAttribute('aria-expanded', String(!collapsed));
+}
+
 let globe;
 
 (async () => {
   const provinceFeatures = await loadProvinceData();
-
   globe = new EventGlobe({
     svgElement: document.querySelector('#globe'),
     events,
@@ -141,9 +178,12 @@ let globe;
     onChinaClick: () => { window.location.href = './china.html'; }
   });
 
-  // 绑定筛选和开关事件
-  document.querySelector('#yearFilter').addEventListener('change', applyFilters);
-  document.querySelector('#categoryFilter').addEventListener('change', applyFilters);
+  document.querySelector('#applyFilters').addEventListener('click', applyFilters);
+  document.querySelector('#resetFilters').addEventListener('click', resetFilters);
+  document.querySelector('#keywordFilter').addEventListener('keydown', (event) => { if (event.key === 'Enter') applyFilters(); });
+  document.querySelector('#locationFilter').addEventListener('keydown', (event) => { if (event.key === 'Enter') applyFilters(); });
+  document.querySelector('#closeSidebar').addEventListener('click', () => setSidebarCollapsed(true));
+  document.querySelector('#openSidebar').addEventListener('click', () => setSidebarCollapsed(false));
   document.querySelector('#rotateToggle').addEventListener('change', (event) => globe.setAutoRotate(event.target.checked));
   document.querySelector('#nightToggle').addEventListener('change', (event) => globe.setShowNight(event.target.checked));
   document.querySelector('#lightsToggle').addEventListener('change', (event) => globe.setShowLights(event.target.checked));
@@ -155,13 +195,41 @@ let globe;
   });
 })();
 
-function applyFilters() {
-  if (!globe) return;
-  const year = document.querySelector('#yearFilter').value;
-  const category = document.querySelector('#categoryFilter').value;
-  const filtered = globe.setFilters({ year, category });
+function selectedCategories() {
+  return [...document.querySelectorAll('input[name="categoryFilter"]:checked')].map((input) => input.value);
+}
 
-  document.querySelector('#eventCount').textContent = filtered.length;
-  document.querySelector('#cityCount').textContent = new Set(filtered.map((event) => event.city)).size;
+function applyFilters(syncTimeline = true) {
+  if (!globe) return;
+  const startDate = document.querySelector('#startDateFilter').value;
+  const endDate = document.querySelector('#endDateFilter').value;
+  const location = document.querySelector('#locationFilter').value.trim();
+  const keyword = document.querySelector('#keywordFilter').value.trim();
+  const categoriesSelected = selectedCategories();
+  const filtered = globe.setFilters({ startDate, endDate, location, categories: categoriesSelected, keyword });
+  const cityCount = new Set(filtered.map((event) => event.city)).size;
+  document.querySelector('#filterSummary').textContent = `${filtered.length} 个节点 · ${cityCount} 个城市`;
+  document.querySelector('#activeFilterBar').textContent = `${location || '全球'} · ${startDate.slice(0, 4)}—${endDate.slice(0, 4)} · ${categoriesSelected.length === categories.length ? '全部类别' : categoriesSelected.join('、') || '未选类别'}`;
+  closeEventCard();
+  if (syncTimeline) timeline.setRange(startDate, endDate, false);
+}
+
+function resetFilters() {
+  document.querySelector('#keywordFilter').value = '';
+  document.querySelector('#locationFilter').value = '';
+  document.querySelector('#startDateFilter').value = defaultStartDate;
+  document.querySelector('#endDateFilter').value = defaultEndDate;
+  document.querySelectorAll('input[name="categoryFilter"]').forEach((input) => { input.checked = true; });
+  document.querySelector('#rotateToggle').checked = true;
+  document.querySelector('#nightToggle').checked = true;
+  document.querySelector('#lightsToggle').checked = true;
+  timeline.reset(false);
+  globe.resetView();
+  globe.setAutoRotate(true);
+  globe.setShowNight(true);
+  globe.setShowLights(true);
+  const filtered = globe.setFilters({ startDate: defaultStartDate, endDate: defaultEndDate, location: '', categories, keyword: '' });
+  document.querySelector('#filterSummary').textContent = `${filtered.length} 个节点 · ${new Set(filtered.map((event) => event.city)).size} 个城市`;
+  document.querySelector('#activeFilterBar').textContent = `全球 · ${defaultStartDate.slice(0, 4)}—${defaultEndDate.slice(0, 4)} · 全部类别`;
   closeEventCard();
 }

@@ -1,12 +1,19 @@
 import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7.9.0/+esm';
+import { EventTimeline } from './components/timeline/EventTimeline.js';
+import { fillEventLinks } from './components/event-details/eventLinks.js';
 
 const W = 960;
 const H = 720;
+const MAX_PROVINCE_ZOOM = 12;
+const VENUE_LOD_SCALE = 2.6;
+const EVENT_LOD_SCALE = 6;
 
 const CATEGORY_COLORS = {
   音乐剧: '#ff5d8f',
   综艺: '#42c9e8',
-  晚会: '#f5bd4f'
+  晚会: '#f5bd4f',
+  音乐会: '#9c7cff',
+  其他: '#63d6a5'
 };
 
 const PROVINCE_COLORS = ['#173f5f', '#1b496b', '#205374', '#245c7d', '#2a6687', '#30708f'];
@@ -25,16 +32,32 @@ function provinceColor(feature) {
   return PROVINCE_COLORS[hash % PROVINCE_COLORS.length];
 }
 
+function shortTitle(value, maxLength = 14) {
+  const title = String(value || '未命名活动');
+  return title.length > maxLength ? `${title.slice(0, maxLength)}…` : title;
+}
+
+function eventDates(event) {
+  if (Array.isArray(event.dates) && event.dates.length) return event.dates.map((item) => item.date).filter(Boolean);
+  return event.date ? [String(event.date).split('~')[0].trim()] : [];
+}
+
 export class ChinaMap {
   constructor({ container, events, onBack }) {
     this.container = d3.select(container);
-    this.events = events || [];
+    this.events = (events || []).filter((event) => event.lon >= 73 && event.lon <= 135 && event.lat >= 17 && event.lat <= 54);
+    this.filteredEvents = [...this.events];
     this.onBack = onBack;
     this.provinceFeatures = [];
     this.selectedEventId = null;
     this.selectedProvince = null;
     this.mapViewport = null;
     this.mapTitle = null;
+    this.markerLayer = null;
+    this.projection = null;
+    this.zoomBehavior = null;
+    this.zoomScale = 1;
+    this.timeline = null;
   }
 
   setProvinceData(features) {
@@ -81,10 +104,13 @@ export class ChinaMap {
 
     // ── 投影 ──
     const proj = d3.geoMercator().center([104, 36]).scale(560).translate([W / 2, H / 2 + 15]);
+    this.projection = proj;
     const path = d3.geoPath(proj);
     this.mapViewport = svg.append('g').attr('class', 'china-map-viewport');
 
-    svg.on('click', () => this.resetProvinceZoom());
+    svg.on('click', (event) => {
+      if (!event.target.closest?.('.lod-node')) this.closeDrawer();
+    });
 
     const chinaClip = defs.append('clipPath').attr('id', 'chinaShapeClip');
     chinaClip.selectAll('path').data(this.provinceFeatures).join('path').attr('d', path);
@@ -129,7 +155,8 @@ export class ChinaMap {
     this.renderSouthChinaSea(svg, proj, path);
 
     // ── 事件标点 ──
-    this.renderMarkers(this.mapViewport, proj);
+    this.markerLayer = this.mapViewport.append('g').attr('class', 'lod-marker-layer');
+    this.renderMarkers();
 
     // ── 标题栏 ──
     const hdr = svg.append('g');
@@ -143,6 +170,29 @@ export class ChinaMap {
 
     // ── 事件卡片 ──
     this.renderEventCard(svg);
+
+    this.zoomBehavior = d3.zoom()
+      .scaleExtent([1, MAX_PROVINCE_ZOOM])
+      .on('zoom', (event) => {
+        this.zoomScale = event.transform.k;
+        this.mapViewport
+          .attr('transform', event.transform)
+          .classed('is-zoomed', event.transform.k > 1.05)
+          .style('--map-inverse-scale', 1 / event.transform.k);
+        this.renderMarkers();
+      });
+    svg.call(this.zoomBehavior).on('dblclick.zoom', null);
+    this.renderFilterPanel();
+    this.timeline = new EventTimeline({
+      container: this.container.node(),
+      dates: this.events.flatMap(eventDates),
+      onChange: ({ startDate, endDate }) => {
+        this.container.select('#cmFilterStart').property('value', startDate);
+        this.container.select('#cmFilterEnd').property('value', endDate);
+        this.applyFilters(false);
+      }
+    });
+    this.renderProvinceSidebar();
   }
 
   zoomToProvince(feature, path) {
@@ -155,34 +205,91 @@ export class ChinaMap {
     const [[x0, y0], [x1, y1]] = path.bounds(feature);
     const width = Math.max(1, x1 - x0);
     const height = Math.max(1, y1 - y0);
-    const scale = Math.min(3.8, Math.max(1.35, 0.72 / Math.max(width / W, height / H)));
+    const scale = Math.min(
+      EVENT_LOD_SCALE - 0.4,
+      Math.max(VENUE_LOD_SCALE + 0.4, 1.05 / Math.max(width / W, height / H))
+    );
     const centerX = (x0 + x1) / 2;
     const centerY = (y0 + y1) / 2;
 
     this.selectedProvince = name;
     this.mapTitle?.text(`中国 · ${name}`);
-    this.mapViewport.classed('is-zoomed', true);
-    this.mapViewport.style('--map-inverse-scale', 1 / scale);
+    this.openProvinceSidebar(feature);
     this.provinceLabels?.classed('is-selected', (item) => item.properties?.name === name);
-    this.mapViewport
+    const transform = d3.zoomIdentity
+      .translate(W / 2 - scale * centerX, H / 2 - scale * centerY)
+      .scale(scale);
+    this.container.select('svg')
       .transition()
       .duration(720)
       .ease(d3.easeCubicInOut)
-      .attr('transform', `translate(${W / 2},${H / 2}) scale(${scale}) translate(${-centerX},${-centerY})`);
+      .call(this.zoomBehavior.transform, transform);
   }
 
   resetProvinceZoom() {
     if (!this.selectedProvince) return;
     this.selectedProvince = null;
     this.mapTitle?.text('中国');
-    this.mapViewport?.classed('is-zoomed', false);
-    this.mapViewport?.style('--map-inverse-scale', 1);
+    this.closeProvinceSidebar();
     this.provinceLabels?.classed('is-selected', false);
-    this.mapViewport
-      ?.transition()
+    this.container.select('svg')
+      .transition()
       .duration(620)
       .ease(d3.easeCubicInOut)
-      .attr('transform', null);
+      .call(this.zoomBehavior.transform, d3.zoomIdentity);
+  }
+
+  renderProvinceSidebar() {
+    const sidebar = this.container.append('aside').attr('class', 'cm-province-sidebar');
+    sidebar.html(`
+      <div class="cm-province-sidebar-header">
+        <div><strong id="cmProvinceSidebarTitle">省区活动</strong><span id="cmProvinceSidebarCount"></span></div>
+        <button id="cmProvinceSidebarCollapse" type="button" aria-label="收起省区活动列表">›</button>
+      </div>
+      <div id="cmProvinceEventList" class="cm-province-event-list"></div>
+    `);
+    sidebar.on('click wheel mousedown', (event) => event.stopPropagation());
+    sidebar.select('#cmProvinceSidebarCollapse').on('click', () => {
+      sidebar.classed('is-collapsed', !sidebar.classed('is-collapsed'));
+    });
+  }
+
+  openProvinceSidebar(feature) {
+    const name = feature.properties?.name || '省区';
+    const events = this.filteredEvents
+      .filter((event) => d3.geoContains(feature, [event.lon, event.lat]))
+      .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+    const sidebar = this.container.select('.cm-province-sidebar');
+    sidebar.classed('is-open', true).classed('is-collapsed', false);
+    sidebar.select('#cmProvinceSidebarTitle').text(name);
+    sidebar.select('#cmProvinceSidebarCount').text(`${events.length} 个活动`);
+    const list = sidebar.select('#cmProvinceEventList');
+    list.html('');
+
+    if (!events.length) {
+      list.append('div').attr('class', 'cm-province-empty').text('当前筛选条件下暂无活动');
+      return;
+    }
+
+    events.forEach((event) => {
+      const item = list.append('article').attr('class', 'cm-province-event-item');
+      const button = item.append('button').attr('class', 'cm-province-event-title').attr('type', 'button').text(event.title || '未命名活动');
+      const detail = item.append('div').attr('class', 'cm-province-event-detail').attr('hidden', true);
+      detail.append('div').attr('class', 'cm-province-event-meta').text(event.dateLabel || event.date || '日期待补充');
+      detail.append('div').attr('class', 'cm-province-event-meta').text([event.city, event.venue].filter(Boolean).join(' · '));
+      if (event.description) detail.append('p').text(event.description);
+      const links = detail.append('div').attr('class', 'event-detail-links').attr('hidden', true).node();
+      fillEventLinks(links, event);
+      button.on('click', () => {
+        const willOpen = detail.attr('hidden') !== null;
+        detail.attr('hidden', willOpen ? null : true);
+        item.classed('is-expanded', willOpen);
+      });
+    });
+  }
+
+  closeProvinceSidebar() {
+    this.container.select('.cm-province-sidebar').classed('is-open', false).classed('is-collapsed', false);
   }
 
   renderAmbientFlow(svg) {
@@ -214,54 +321,174 @@ export class ChinaMap {
     city.append('circle').attr('class', 'ambient-city-core').attr('r', 1.15);
   }
 
-  // ═══ 事件标点 ═══
-  renderMarkers(svg, proj) {
-    const chinaEvents = this.events.filter((e) => e.lon >= 73 && e.lon <= 135 && e.lat >= 17 && e.lat <= 54);
-    const mg = svg.append('g');
-    const nodes = mg.selectAll('g').data(chinaEvents, (d) => d.id).join('g')
-      .attr('transform', (d) => { const [x, y] = proj([d.lon, d.lat]); return `translate(${x},${y})`; })
-      .style('cursor', 'pointer')
-      .on('click', (ev, d) => { ev.stopPropagation(); this.selectEvent(d); });
+  // ═══ 三层 LOD 标点：城市 → 场馆 → 活动 ═══
+  renderMarkers() {
+    if (!this.markerLayer || !this.projection) return;
+    const events = this.filteredEvents.filter((e) => e.lon >= 73 && e.lon <= 135 && e.lat >= 17 && e.lat <= 54);
+    const level = this.zoomScale < VENUE_LOD_SCALE ? 'city' : this.zoomScale < EVENT_LOD_SCALE ? 'venue' : 'event';
+    const data = this.aggregateEvents(events, level);
 
-    const visuals = nodes.append('g').attr('class', 'event-node-visual');
+    const nodes = this.markerLayer.selectAll('g.lod-node').data(data, (d) => d.key).join(
+      (enter) => {
+        const node = enter.append('g').attr('class', 'lod-node').style('cursor', 'pointer');
+        const visual = node.append('g').attr('class', 'event-node-visual');
+        visual.append('circle').attr('class', 'event-node-pulse').attr('r', 7).attr('fill', 'none').attr('stroke-width', 2);
+        visual.append('circle').attr('class', 'event-node-halo').attr('r', 9);
+        visual.append('circle').attr('class', 'event-node-core').attr('r', 5.5).attr('stroke', '#06101c').attr('stroke-width', 2);
+        visual.append('text').attr('class', 'lod-node-count').attr('text-anchor', 'middle').attr('dy', 3.5);
+        visual.append('text').attr('class', 'lod-hover-label').attr('dx', 10).attr('dy', 4);
+        return node;
+      },
+      (update) => update,
+      (exit) => exit.remove()
+    )
+      .attr('data-lod', level)
+      .attr('transform', (d) => { const [x, y] = this.projection([d.lon, d.lat]); return `translate(${x},${y})`; })
+      .on('click', (event, d) => {
+        event.stopPropagation();
+        if (d.level === 'event') this.selectEvent(d.events[0]);
+        else this.zoomToLodNode(d);
+      });
 
-    visuals.append('circle')
-      .attr('class', 'event-node-pulse')
-      .attr('r', 7)
-      .attr('fill', 'none')
-      .attr('stroke', (d) => CATEGORY_COLORS[d.category] || '#b9d2df')
-      .attr('stroke-width', 2);
-    visuals.append('circle')
-      .attr('class', 'event-node-halo')
-      .attr('r', 9)
-      .attr('fill', (d) => CATEGORY_COLORS[d.category] || '#b9d2df');
-    visuals.append('circle')
-      .attr('class', 'event-node-core')
-      .attr('r', 5.5)
-      .attr('fill', (d) => CATEGORY_COLORS[d.category] || '#b9d2df')
-      .attr('stroke', '#06101c')
-      .attr('stroke-width', 2);
-    visuals.append('text').attr('dx', 9).attr('dy', 4).attr('fill', '#eef6fb').attr('font-size', 11)
-      .attr('paint-order', 'stroke').attr('stroke', '#06101c').attr('stroke-width', 4).attr('stroke-linejoin', 'round')
-      .text((d) => d.city);
+    nodes.select('.event-node-pulse').attr('stroke', (d) => d.color);
+    nodes.select('.event-node-halo').attr('fill', (d) => d.color);
+    nodes.select('.event-node-core').attr('fill', (d) => d.color);
+    nodes.select('.lod-node-count').text((d) => d.level === 'event' ? '' : d.events.length);
+    nodes.select('.lod-hover-label').text((d) => d.shortLabel);
+  }
+
+  aggregateEvents(events, level) {
+    if (level === 'event') {
+      return events.map((event) => ({
+        key: `event:${event.id}`, level, events: [event], lon: event.lon, lat: event.lat,
+        shortLabel: shortTitle(event.title), color: CATEGORY_COLORS[event.category] || '#b9d2df'
+      }));
+    }
+    const groups = d3.group(events, (event) => level === 'city' ? event.city : `${event.city}|${event.venue}`);
+    return [...groups].map(([key, members]) => ({
+      key: `${level}:${key}`,
+      level,
+      events: members,
+      lon: d3.mean(members, (event) => event.lon),
+      lat: d3.mean(members, (event) => event.lat),
+      shortLabel: [members[0].city, members[0].venue].some((value) => String(value || '').includes('未公开'))
+        ? ''
+        : shortTitle(level === 'city' ? `${members[0].city} · ${members.length}项` : `${members[0].venue} · ${members.length}项`),
+      color: CATEGORY_COLORS[members[0].category] || '#b9d2df'
+    }));
+  }
+
+  zoomToLodNode(d) {
+    this.closeDrawer();
+    const targetScale = d.level === 'city' ? Math.max(VENUE_LOD_SCALE + 0.4, this.zoomScale * 1.8) : Math.max(EVENT_LOD_SCALE + 0.5, this.zoomScale * 1.55);
+    const scale = Math.min(MAX_PROVINCE_ZOOM, targetScale);
+    const [x, y] = this.projection([d.lon, d.lat]);
+    const transform = d3.zoomIdentity.translate(W / 2 - scale * x, H / 2 - scale * y).scale(scale);
+    this.container.select('svg').transition().duration(650).ease(d3.easeCubicInOut).call(this.zoomBehavior.transform, transform);
+  }
+
+  renderFilterPanel() {
+    const dates = this.events.flatMap(eventDates).sort();
+    const start = dates[0] || '2024-01-01';
+    const end = dates.at(-1) || '2026-12-31';
+    const categories = [...new Set(this.events.map((event) => event.category).filter(Boolean))];
+    const panel = this.container.append('div').attr('class', 'cm-filter-panel is-collapsed');
+    panel.html(`
+      <div class="cm-filter-header"><div><strong>筛选活动</strong><span id="cmFilterCount">${this.filteredEvents.length} 个活动</span></div><button id="cmFilterCollapse" type="button" aria-label="展开筛选" title="筛选">⌕</button></div>
+      <div class="cm-filter-content">
+        <label>关键词<input id="cmFilterKeyword" type="search" placeholder="活动、场馆、人物" /></label>
+        <label>地点<input id="cmFilterLocation" type="search" placeholder="城市或场馆" /></label>
+        <div class="cm-filter-dates"><label>开始<input id="cmFilterStart" type="date" value="${start}" /></label><label>结束<input id="cmFilterEnd" type="date" value="${end}" /></label></div>
+        <fieldset><legend>活动种类</legend>${categories.map((category) => `<label class="cm-filter-check"><input type="checkbox" name="cmCategory" value="${category}" checked /><span>${category}</span></label>`).join('')}</fieldset>
+        <div class="cm-filter-actions"><button id="cmApplyFilters" type="button">应用筛选</button><button id="cmResetFilters" type="button">Reset</button></div>
+      </div>
+    `);
+    panel.on('click wheel mousedown', (event) => event.stopPropagation());
+    panel.select('#cmFilterCollapse').on('click', () => {
+      const collapsed = !panel.classed('is-collapsed');
+      panel.classed('is-collapsed', collapsed);
+      panel.select('#cmFilterCollapse').text(collapsed ? '⌕' : '‹').attr('aria-label', collapsed ? '展开筛选' : '收起筛选');
+    });
+    panel.select('#cmApplyFilters').on('click', () => this.applyFilters());
+    panel.select('#cmResetFilters').on('click', () => this.resetFilters(start, end));
+    panel.selectAll('input[type="search"]').on('keydown', (event) => { if (event.key === 'Enter') this.applyFilters(); });
+  }
+
+  applyFilters(syncTimeline = true) {
+    const keyword = this.container.select('#cmFilterKeyword').property('value').trim().toLowerCase();
+    const location = this.container.select('#cmFilterLocation').property('value').trim().toLowerCase();
+    const start = this.container.select('#cmFilterStart').property('value');
+    const end = this.container.select('#cmFilterEnd').property('value');
+    const categories = new Set(this.container.selectAll('input[name="cmCategory"]:checked').nodes().map((node) => node.value));
+    this.filteredEvents = this.events.filter((event) => {
+      const dates = eventDates(event);
+      const inDateRange = !dates.length || dates.some((date) => (!start || date >= start) && (!end || date <= end));
+      const locationText = [event.country, event.city, event.venue].filter(Boolean).join(' ').toLowerCase();
+      const keywordText = [event.title, event.description, event.role, event.artist, event.tourBatch, event.venue, event.city].filter(Boolean).join(' ').toLowerCase();
+      return inDateRange
+        && categories.has(event.category)
+        && (!location || locationText.includes(location))
+        && (!keyword || keywordText.includes(keyword));
+    });
+    this.container.select('#cmFilterCount').text(`${this.filteredEvents.length} 个活动`);
+    this.closeDrawer();
+    this.renderMarkers();
+    const selectedFeature = this.provinceFeatures.find((feature) => feature.properties?.name === this.selectedProvince);
+    if (selectedFeature) this.openProvinceSidebar(selectedFeature);
+    if (syncTimeline) this.timeline?.setRange(start, end, false);
+  }
+
+  resetFilters(start, end) {
+    this.container.select('#cmFilterKeyword').property('value', '');
+    this.container.select('#cmFilterLocation').property('value', '');
+    this.container.select('#cmFilterStart').property('value', start);
+    this.container.select('#cmFilterEnd').property('value', end);
+    this.container.selectAll('input[name="cmCategory"]').property('checked', true);
+    this.timeline?.reset(false);
+    this.filteredEvents = [...this.events];
+    this.container.select('#cmFilterCount').text(`${this.filteredEvents.length} 个活动`);
+    this.closeDrawer();
+    this.renderMarkers();
+    const selectedFeature = this.provinceFeatures.find((feature) => feature.properties?.name === this.selectedProvince);
+    if (selectedFeature) this.openProvinceSidebar(selectedFeature);
   }
 
   selectEvent(d) {
     this.selectedEventId = d.id;
-    const card = this.container.select('#cmCard');
-    card.classed('hidden', false);
-    card.select('#cmCat').text(d.category);
-    card.select('#cmTitle').text(d.title);
-    card.select('#cmMeta').text(`${d.dateLabel || d.date} · ${d.city} · ${d.venue}${d.role ? ' · ' + d.role : ''}`);
-    card.select('#cmDesc').text(d.description);
+    this.closeProvinceSidebar();
+    const drawer = this.container.select('#cmDrawer');
+    drawer.classed('is-open', true).attr('pointer-events', 'all');
+    drawer.select('#cmCat').text(d.category || '其他');
+    drawer.select('#cmTitle').text(d.title || '未命名活动');
+    drawer.select('#cmDate').text(d.dateLabel || d.date || '日期待补充');
+    drawer.select('#cmLocation').text(`${d.city || ''}${d.venue ? ` · ${d.venue}` : ''}`);
+    drawer.select('#cmRole').text(d.role || d.artist || '');
+    drawer.select('#cmDesc').text(d.description || '暂无活动描述');
+    drawer.select('#cmTour').text(d.tourSummary || '');
+    fillEventLinks(this.container.select('#cmLinks').node(), d);
   }
 
   renderEventCard(svg) {
-    const card = svg.append('foreignObject').attr('id', 'cmCard').attr('x', 20).attr('y', H - 130).attr('width', 340).attr('height', 110).attr('class', 'hidden');
-    const div = card.append('xhtml:div').attr('style',
-      'font-family:Inter,system-ui,sans-serif;background:rgba(6,18,31,0.94);border:1px solid rgba(155,192,216,0.16);border-radius:14px;padding:14px 16px;color:#eef6fb;backdrop-filter:blur(18px);box-shadow:0 20px 60px rgba(0,0,0,0.3);height:100%;box-sizing:border-box;');
-    div.html(`<div style="display:flex;justify-content:space-between;align-items:flex-start;"><div><span id="cmCat" style="display:inline-block;padding:2px 8px;border-radius:99px;background:#173048;color:#a9d3e9;font-size:10px;margin-bottom:6px;"></span><div id="cmTitle" style="font-size:15px;font-weight:650;"></div></div><button id="cmClose" style="background:#11283c;border:1px solid #29465d;color:#91a7b8;width:28px;height:28px;border-radius:7px;cursor:pointer;font-size:15px;">×</button></div><div id="cmMeta" style="font-size:12px;color:#8fa3b5;margin-top:6px;"></div><div id="cmDesc" style="font-size:12px;color:#d0dce5;margin-top:6px;"></div>`);
-    svg.select('#cmClose').on('click', () => { this.selectedEventId = null; card.classed('hidden', true); });
+    const drawer = svg.append('foreignObject')
+      .attr('id', 'cmDrawer').attr('x', W - 360).attr('y', 16).attr('width', 344).attr('height', H - 32)
+      .attr('class', 'cm-drawer').attr('pointer-events', 'none');
+    drawer.append('xhtml:div').attr('class', 'cm-drawer-panel').html(`
+      <div class="cm-drawer-head"><span id="cmCat" class="cm-drawer-category"></span><button id="cmClose" class="cm-drawer-close" type="button">×</button></div>
+      <h2 id="cmTitle" class="cm-drawer-title"></h2>
+      <div class="cm-drawer-section"><span>时间</span><strong id="cmDate"></strong></div>
+      <div class="cm-drawer-section"><span>地点</span><strong id="cmLocation"></strong></div>
+      <div class="cm-drawer-section"><span>参与</span><strong id="cmRole"></strong></div>
+      <div class="cm-drawer-divider"></div>
+      <p id="cmDesc" class="cm-drawer-description"></p>
+      <p id="cmTour" class="cm-drawer-tour"></p>
+      <div id="cmLinks" class="event-detail-links" hidden></div>
+    `);
+    svg.select('#cmClose').on('click', (event) => { event.stopPropagation(); this.closeDrawer(); });
+  }
+
+  closeDrawer() {
+    this.selectedEventId = null;
+    this.container.select('#cmDrawer').classed('is-open', false).attr('pointer-events', 'none');
   }
 
   // ═══ 南海诸岛 ═══

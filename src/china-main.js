@@ -1,6 +1,7 @@
-import { ChinaMap } from './chinaMap.js';
+import { ChinaMap } from './chinaMap.js?v=29';
 import { loadChinaProvinces } from './chinaMapData.js';
-import { events } from './data/events.js';
+import { events } from './data/allEvents.js?v=29';
+import { NavigationRail } from './components/navigation/NavigationRail.js';
 
 async function init() {
   // 显示加载中
@@ -27,6 +28,7 @@ async function init() {
   });
   map.setProvinceData(features);
   map.show();
+  new NavigationRail({ container: document.body, active: 'earth' });
 }
 
 init();

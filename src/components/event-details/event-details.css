@@ -1,0 +1,6 @@
+.event-detail-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.event-detail-links[hidden] { display: none; }
+.event-detail-link { display: inline-flex; align-items: center; min-height: 28px; box-sizing: border-box; padding: 5px 10px; border: 1px solid rgba(105, 187, 222, .3); border-radius: 8px; color: #bceaff; background: rgba(25, 91, 119, .3); font: 500 11px/1.4 Inter, system-ui, sans-serif; text-decoration: none; transition: border-color 150ms ease, background 150ms ease, transform 150ms ease; }
+.event-detail-link:hover { border-color: rgba(130, 218, 255, .7); background: rgba(35, 121, 157, .48); transform: translateY(-1px); }
+.event-detail-link-media { border-color: rgba(196, 119, 163, .35); color: #ffd0e8; background: rgba(116, 48, 88, .28); }
+.event-detail-link-media:hover { border-color: rgba(233, 146, 195, .7); background: rgba(139, 57, 103, .45); }
