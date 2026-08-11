@@ -1,5 +1,5 @@
 import { CATEGORY_GROUPS, CATEGORY_PAGES } from './categories.js';
-import { activePerson, personUrl } from '../../data/personRegistry.js';
+import { activePerson, personUrl } from '../../data/personRegistry.js?v=36';
 
 export class NavigationRail {
   constructor({ container = document.body, active = 'earth', actions = [] } = {}) {

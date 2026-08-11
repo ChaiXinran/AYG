@@ -20,22 +20,6 @@ export const BACKGROUND_CONFIG = {
       business: backgroundAsset('ayanga/categories/business.jpg'),
     },
   },
-  zhengyunlong: {
-    earth: backgroundAsset('zhengyunlong/earth.jpg'),
-    chinaMap: backgroundAsset('zhengyunlong/china-map.jpg'),
-    fallbackCategory: backgroundAsset('zhengyunlong/category.jpg'),
-    categories: {
-      musical: backgroundAsset('zhengyunlong/categories/musical.jpg'),
-      drama: backgroundAsset('zhengyunlong/categories/drama.jpg'),
-      concert: backgroundAsset('zhengyunlong/categories/concert.jpg'),
-      film: backgroundAsset('zhengyunlong/categories/film.jpg'),
-      gala: backgroundAsset('zhengyunlong/categories/gala.jpg'),
-      variety: backgroundAsset('zhengyunlong/categories/variety.jpg'),
-      ost: backgroundAsset('zhengyunlong/categories/ost.jpg'),
-      single: backgroundAsset('zhengyunlong/categories/single.jpg'),
-      business: backgroundAsset('zhengyunlong/categories/business.jpg'),
-    },
-  },
 };
 
 export function backgroundsFor(personId) {

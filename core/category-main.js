@@ -1,5 +1,5 @@
-import { activePerson, personUrl } from './data/personRegistry.js?v=35';
-import { NavigationRail } from './components/navigation/NavigationRail.js?v=30';
+import { activePerson, personUrl } from './data/personRegistry.js?v=36';
+import { NavigationRail } from './components/navigation/NavigationRail.js?v=32';
 import { getCategoryItems, getCategoryPage } from './components/navigation/categories.js';
 import { fillEventLinks } from './components/event-details/eventLinks.js';
 
@@ -45,8 +45,6 @@ function render(items) {
       '音乐剧《风声》2.0': { id: 'the-message', icon: '◆', personId: 'ayanga' },
       '音乐剧《剧院魅影》中文版': { id: 'phantom-of-opera', icon: '🎭', personId: 'ayanga' },
       '音乐剧《在远方》': { id: 'on-the-road', icon: '📦', personId: 'ayanga' },
-      '将进酒': { id: 'bring-in-the-wine', icon: '🍶', personId: 'zhengyunlong' },
-      '魔幻时刻': { id: 'the-magic-hour', icon: '🎩', personId: 'zhengyunlong' },
     }[item.title];
     if (tourWork?.personId === person.id && isEventCollection) {
       const tourLink = document.createElement('a');

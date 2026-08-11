@@ -1,10 +1,10 @@
 import { EventGlobe } from './globe.js?v=31';
 import { loadChinaProvinces } from './chinaMapData.js';
-import { activePerson, people, personUrl } from './data/personRegistry.js?v=35';
+import { activePerson, people, personUrl } from './data/personRegistry.js?v=36';
 import { cityLights } from './data/cities.js';
 import { EventTimeline } from './components/timeline/EventTimeline.js';
 import { fillEventLinks } from './components/event-details/eventLinks.js';
-import { NavigationRail } from './components/navigation/NavigationRail.js?v=31';
+import { NavigationRail } from './components/navigation/NavigationRail.js?v=32';
 import { defaultTourForPerson } from './config/tours.js';
 
 async function loadProvinceData() {

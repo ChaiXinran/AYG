@@ -1,7 +1,7 @@
 import { ChinaMap } from './chinaMap.js?v=32';
 import { loadChinaProvinces } from './chinaMapData.js';
-import { activePerson, personUrl } from './data/personRegistry.js?v=35';
-import { NavigationRail } from './components/navigation/NavigationRail.js?v=30';
+import { activePerson, personUrl } from './data/personRegistry.js?v=36';
+import { NavigationRail } from './components/navigation/NavigationRail.js?v=32';
 
 async function init() {
   const person = activePerson();

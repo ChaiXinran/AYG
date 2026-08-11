@@ -4,10 +4,10 @@ const path = require('node:path');
 const repoRoot = path.resolve(__dirname, '..');
 const outputDir = path.join(repoRoot, 'dist');
 const site = process.argv[2];
-const supportedSites = new Set(['home', 'ayg', 'zyl']);
+const supportedSites = new Set(['home', 'ayg']);
 
 if (!supportedSites.has(site)) {
-  console.error('Usage: node scripts/build-site.js <home|ayg|zyl>');
+  console.error('Usage: node scripts/build-site.js <home|ayg>');
   process.exit(1);
 }
 

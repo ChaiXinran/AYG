@@ -78,23 +78,19 @@ http://localhost:8000
 
 ### 1. 活动数据
 
-网站现只使用两份 `*_2014-2026_全分类汇总.xlsx` 作为人物数据源。旧年度数据文件保留作历史备份，不再被页面导入。
+网站现只使用阿云嘎的 `*_2014-2026_全分类汇总.xlsx` 作为人物数据源。旧年度数据文件保留作历史备份，不再被页面导入。
 
-多人物工作簿统一使用 `tools/convert_artist_workbook.py` 转换。它兼容现有阿云嘎年度表，
+人物工作簿使用 `tools/convert_artist_workbook.py` 转换。它兼容现有阿云嘎年度表，
 也支持包含“公开演出活动汇总 / 影视作品 / OST及原声 / 单曲”的综合工作簿：
 
 ```bash
-python tools/convert_artist_workbook.py "core/data/郑云龙_2014-2026_全分类汇总.xlsx" \
-  "core/data/artists/zhengyunlong.js" --artist-id zhengyunlong --artist-name 郑云龙
-
 python tools/convert_artist_workbook.py "core/data/阿云嘎_2014-2026_全分类汇总.xlsx" \
   "core/data/artists/ayanga.js" --artist-id ayanga --artist-name 阿云嘎
 ```
 
 每次更新 Excel 后重新运行对应命令即可。转换器会读取“音乐剧、话剧、演唱会／gala、晚会、综艺、商务、影视作品、OST、单曲”工作表，并以工作表分类为准，不再扫描旧年度文件。
 
-人物及其数据源统一登记在 `core/data/personRegistry.js`。页面通过 `?person=ayanga`
-或 `?person=zhengyunlong` 切换，并会记住用户最近一次选择。
+阿云嘎及其数据源登记在 `core/data/personRegistry.js`。
 
 ```js
 {

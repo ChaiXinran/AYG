@@ -1,6 +1,6 @@
 import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7.9.0/+esm';
 import { loadChinaProvinces } from './chinaMapData.js';
-import { activePerson, personUrl } from './data/personRegistry.js';
+import { activePerson, personUrl } from './data/personRegistry.js?v=36';
 import { defaultTourForPerson, toursForPerson } from './config/tours.js';
 
 const W = 1100;
