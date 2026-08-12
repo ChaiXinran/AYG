@@ -786,6 +786,7 @@ body:has(.app-shell:not(.sidebar-collapsed)) .navigation-rail {
 .map-node.is-selected .node-body {
   stroke-width: 2.8px;
 }
+.map-node.has-liked .node-label { fill:#f3a7c1; }
 
 .map-node.is-cluster .node-orbit {
   animation: clusterOrbit 10s linear infinite;

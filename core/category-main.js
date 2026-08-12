@@ -2,6 +2,8 @@ import { activePerson, personUrl } from './data/personRegistry.js?v=36';
 import { NavigationRail } from './components/navigation/NavigationRail.js?v=32';
 import { getCategoryItems, getCategoryPage } from './components/navigation/categories.js';
 import { fillEventLinks } from './components/event-details/eventLinks.js';
+import { CommunityClient } from './components/community/communityClient.js?v=4';
+import { eventKey, loadEventCatalog } from './data/eventCatalog.js?v=2';
 
 const type = new URLSearchParams(window.location.search).get('type') || 'musical';
 const person = activePerson();
@@ -9,7 +11,11 @@ const category = getCategoryPage(type);
 const categoryBackground = person.backgrounds.categories?.[category.id] || person.backgrounds.category;
 const categoryBackgroundUrl = new URL(categoryBackground, window.location.href).href;
 document.documentElement.style.setProperty('--person-category-background', `url("${categoryBackgroundUrl}")`);
+const communityClient = new CommunityClient();
+await communityClient.init().catch(() => null);
+if (category.collection === 'events') person.events = await loadEventCatalog(communityClient, person.events);
 const matches = getCategoryItems(person, category).sort((a, b) => String(b.date || b.year || '').localeCompare(String(a.date || a.year || '')));
+const eventMarks = await communityClient.getEventMarks(matches.filter((item) => item.communityId)).catch(() => new Map());
 const isEventCollection = category.collection === 'events';
 document.title = `${person.name} · ${category.label} · My Event Earth`;
 new NavigationRail({ container: document.body, active: category.id });
@@ -39,6 +45,7 @@ function render(items) {
     card.querySelector('.category-card-location').textContent = secondary;
     card.querySelector('.category-card-description').textContent = description;
     fillEventLinks(card.querySelector('.event-detail-links'), item);
+    if (item.communityId) { const state=eventMarks.get(eventKey(item))||{}; const button=document.createElement('button'); button.className=`category-like-button${state.liked?' is-active':''}`; button.type='button'; button.dataset.eventLike=eventKey(item); button.textContent=`${state.liked?'♥ 已赞':'♡ 点赞'} ${Number(state.like_count||0)}`; card.append(button); }
     const tourWork = {
       '音乐剧《基督山伯爵》中文版': { id: 'monte-cristo', icon: '⛵', personId: 'ayanga' },
       '音乐剧《风声》': { id: 'the-message', icon: '◆', personId: 'ayanga' },
@@ -57,6 +64,7 @@ function render(items) {
   });
 }
 render(matches);
+grid.addEventListener('click',async(event)=>{const button=event.target.closest('[data-event-like]');if(!button)return;const item=matches.find((candidate)=>eventKey(candidate)===button.dataset.eventLike);if(!item)return;if(!communityClient.user){window.location.href='./index.html?community=account';return;}const state=eventMarks.get(eventKey(item))||{liked:false,like_count:0};try{const active=await communityClient.toggleEventLike(item,Boolean(state.liked));state.liked=active;state.like_count=Math.max(0,Number(state.like_count||0)+(active?1:-1));eventMarks.set(eventKey(item),state);button.classList.toggle('is-active',active);button.textContent=`${active?'♥ 已赞':'♡ 点赞'} ${state.like_count}`;}catch(error){window.alert(error.message);}});
 document.querySelector('#categorySearch').addEventListener('input', (event) => {
   const query = event.target.value.trim().toLowerCase();
   const filtered = matches.filter((item) => Object.values(item).flat().filter((value) => typeof value === 'string').join(' ').toLowerCase().includes(query));

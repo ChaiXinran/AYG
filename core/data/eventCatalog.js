@@ -21,19 +21,16 @@ export function eventPersonName(event = {}) {
 }
 
 export async function loadEventCatalog(client, fallbackEvents = []) {
-  const fallbackByCommunityId = new Map();
+  const fallbackById = new Map();
   fallbackEvents.forEach((event) => {
-    if (!event.communityId) return;
-    const list = fallbackByCommunityId.get(String(event.communityId)) || [];
-    list.push(event);
-    fallbackByCommunityId.set(String(event.communityId), list);
+    [event.id, event.sourceId].filter(Boolean).forEach((id) => fallbackById.set(String(id), event));
   });
 
   try {
     const liveEvents = await client.listEvents();
     if (!liveEvents.length) return [...fallbackEvents];
-    return liveEvents.map((liveEvent) => {
-      const fallbacks = fallbackByCommunityId.get(String(liveEvent.communityId)) || [];
+    const mergedLiveEvents = liveEvents.map((liveEvent) => {
+      const fallbacks = (liveEvent.legacyIds || []).map((id) => fallbackById.get(String(id))).filter(Boolean);
       const fallback = fallbacks[0] || {};
       const personIds = [...new Set([
         ...eventPeople(liveEvent),
@@ -50,6 +47,11 @@ export async function loadEventCatalog(client, fallbackEvents = []) {
         role: liveEvent.role || fallbacks.map((event) => event.role).filter(Boolean).filter((value, index, values) => values.indexOf(value) === index).join('、'),
       };
     });
+    const importedLegacyIds = new Set(liveEvents.flatMap((event) => event.legacyIds || []).map(String));
+    return [...mergedLiveEvents, ...fallbackEvents.filter((event) => {
+      if (event.communityId) return !liveEvents.some((liveEvent) => String(liveEvent.communityId) === String(event.communityId));
+      return ![event.id, event.sourceId].filter(Boolean).some((id) => importedLegacyIds.has(String(id)));
+    })];
   } catch (error) {
     console.warn('活动目录同步失败，已使用本地历史数据：', error.message);
     return [...fallbackEvents];

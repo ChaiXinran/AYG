@@ -1,4 +1,4 @@
-import { EventGlobe } from './globe.js?v=31';
+import { EventGlobe } from './globe.js?v=33';
 import { loadChinaProvinces } from './chinaMapData.js';
 import { activePerson, people, personUrl } from './data/personRegistry.js?v=36';
 import { cityLights } from './data/cities.js';
@@ -6,9 +6,9 @@ import { EventTimeline } from './components/timeline/EventTimeline.js';
 import { fillEventLinks } from './components/event-details/eventLinks.js';
 import { NavigationRail } from './components/navigation/NavigationRail.js?v=32';
 import { defaultTourForPerson } from './config/tours.js';
-import { CommunityClient } from './components/community/communityClient.js?v=1';
+import { CommunityClient } from './components/community/communityClient.js?v=4';
 import { CommunityPanel } from './components/community/CommunityPanel.js?v=1';
-import { loadEventCatalog } from './data/eventCatalog.js?v=1';
+import { loadEventCatalog } from './data/eventCatalog.js?v=2';
 
 async function loadProvinceData() {
   try {
@@ -30,6 +30,7 @@ const person = activePerson();
 const communityClient = new CommunityClient();
 await communityClient.init().catch((error) => console.warn('社区账号初始化失败：', error.message));
 const events = await loadEventCatalog(communityClient, person.events);
+const eventMarks = await communityClient.getEventMarks(events).catch(() => new Map());
 const earthBackgroundUrl = new URL(person.backgrounds.earth, window.location.href).href;
 document.documentElement.style.setProperty('--person-earth-background', `url("${earthBackgroundUrl}")`);
 localStorage.setItem('event-earth-person', person.id);
@@ -138,7 +139,7 @@ app.innerHTML = `
         </div>
         <div id="cardMeta" class="event-meta"></div>
         <div id="cardDescription" class="event-description"></div>
-        <div id="cardLinks" class="event-detail-links" hidden></div><button id="eventDiscussionButton" class="ui-button" type="button">进入活动讨论</button>
+        <div id="cardLinks" class="event-detail-links" hidden></div><div class="community-card-actions"><button id="eventLikeButton" class="community-card-button" type="button">♡ 点赞 <span id="eventLikeCount">0</span></button><button id="eventDiscussionButton" class="ui-button" type="button">进入活动讨论</button></div>
       </section>
     </main>
   </div>
@@ -185,6 +186,11 @@ function openEventCard(event) {
   document.querySelector('#cardMeta').textContent = `${event.dateLabel || event.date} · ${event.city} · ${event.venue}${event.role ? ' · ' + event.role : ''}`;
   document.querySelector('#cardDescription').textContent = event.description;
   fillEventLinks(document.querySelector('#cardLinks'), event);
+  const state = eventMarks.get(String(event.communityId || event.id)) || {};
+  const likeButton = document.querySelector('#eventLikeButton');
+  likeButton.classList.toggle('is-active', Boolean(state.liked));
+  likeButton.firstChild.textContent = state.liked ? '♥ 已赞 ' : '♡ 点赞 ';
+  document.querySelector('#eventLikeCount').textContent = String(Number(state.like_count || 0));
   card.classList.remove('hidden');
 }
 
@@ -213,6 +219,7 @@ let globe;
     onClusterSelect: closeEventCard,
     onChinaClick: () => { window.location.href = personUrl(person.id, './china.html'); }
   });
+  globe.setEventMarks(eventMarks);
 
   document.querySelector('#applyFilters').addEventListener('click', applyFilters);
   document.querySelector('#resetFilters').addEventListener('click', resetFilters);
@@ -224,6 +231,14 @@ let globe;
   document.querySelector('#nightToggle').addEventListener('change', (event) => globe.setShowNight(event.target.checked));
   document.querySelector('#lightsToggle').addEventListener('change', (event) => globe.setShowLights(event.target.checked));
   document.querySelector('#closeCard').addEventListener('click', closeEventCard);
+  document.querySelector('#eventLikeButton').addEventListener('click', async () => {
+    if (!communityClient.user) { community.open('account'); return; }
+    const current = community.currentEvent;
+    if (!current) return;
+    const key = String(current.communityId || current.id);
+    const state = eventMarks.get(key) || { liked:false, like_count:0 };
+    try { const active = await communityClient.toggleEventLike(current, Boolean(state.liked)); state.liked=active; state.like_count=Math.max(0,Number(state.like_count||0)+(active?1:-1)); eventMarks.set(key,state); globe.setEventMarks(eventMarks); openEventCard(current); } catch(error){ community.toast(error.message,true); }
+  });
   document.querySelector('#globe').addEventListener('click', (event) => {
     if (event.target.closest('.map-node')) return;
     globe.clearExpanded();

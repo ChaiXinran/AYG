@@ -205,6 +205,12 @@ body::after {
 .cm-drawer-divider { height: 1px; margin: 24px 0; background: rgba(143, 188, 211, .14); }
 .cm-drawer-description, .cm-drawer-tour { color: #c9d9e2; font-size: 13px; line-height: 1.75; }
 .cm-drawer-tour { color: #8fa8b6; }
+.cm-event-marks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 18px; padding-top: 15px; border-top: 1px solid rgba(143, 188, 211, .14); }
+.cm-event-marks button { min-width: 0; padding: 8px 4px; border: 1px solid rgba(121, 181, 207, .2); border-radius: 8px; color: #91acb9; background: rgba(13, 42, 61, .7); font-size: 10px; cursor: pointer; }
+.cm-event-marks button.is-active { border-color: rgba(104, 205, 199, .38); color: #bcebdc; background: rgba(39, 112, 91, .25); }
+.cm-event-marks button[data-event-mark='recommended'].is-active { border-color: rgba(229, 188, 92, .38); color: #efd58f; background: rgba(116, 82, 27, .24); }
+.cm-event-marks button[data-event-mark='favorite'].is-active, .cm-event-marks button[data-event-mark='liked'].is-active { border-color: rgba(242, 166, 195, .42); color: #ffd0e1; background: rgba(121, 42, 76, .26); }
+.lod-node.has-liked .event-node-core { stroke: #f2a6c3; stroke-width: 2.8px; }
 
 .cm-filter-panel {
   position: fixed;

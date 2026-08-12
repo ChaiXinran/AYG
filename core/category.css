@@ -22,4 +22,6 @@ body::after { position:fixed; z-index:-1; inset:0; background:radial-gradient(ci
 .category-card-description { display:-webkit-box; overflow:hidden; color:#bdcdd6; font-size:12px; line-height:1.65; -webkit-line-clamp:3; -webkit-box-orient:vertical; }
 .category-tour-link { display:inline-flex; margin-top:12px; padding:7px 10px; border:1px solid rgba(203,171,99,.32); border-radius:8px; color:#efd99e; background:rgba(78,61,29,.24); font-size:11px; text-decoration:none; }
 .category-tour-link:hover { border-color:rgba(231,198,120,.65); background:rgba(100,76,33,.38); }
+.category-like-button { margin-top:12px; padding:8px 11px; border:1px solid rgba(231,125,166,.22); border-radius:8px; color:#c39aab; background:rgba(70,31,50,.3); cursor:pointer; }
+.category-like-button.is-active { color:#f2aeca; border-color:rgba(231,125,166,.46); }
 @media(max-width:700px){#categoryApp{width:calc(100% - 28px);padding-top:28px}.category-header{grid-template-columns:40px minmax(0,1fr);gap:13px}.category-back{width:36px;height:36px;font-size:17px}.category-header h1{font-size:34px}}

@@ -55,12 +55,12 @@
 .community-avatar-report:hover { border-color: rgba(239, 126, 151, .48); box-shadow: 0 0 0 3px rgba(196, 70, 101, .08); }
 .community-avatar.is-me { border-color: rgba(112, 223, 180, .24); color: #c7f5dd; background: linear-gradient(145deg, rgba(43, 135, 105, .38), rgba(26, 80, 74, .52)); }
 .community-comment-meta { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.community-comment-meta strong { color: #d9ebf2; font-size: 11px; font-weight: 600; }
-.community-comment-meta > span { color: #6e91a2; font-size: 9px; }
-.community-comment-meta time { color: #5f7989; font-size: 9px; }
-.community-comment-body p { margin: 7px 0 8px; color: #adc1cc; font-size: 12px; line-height: 1.68; white-space: pre-wrap; }
+.community-comment-meta strong { color: #d9ebf2; font-size: 14px; font-weight: 600; }
+.community-comment-meta > span { color: #7d9dac; font-size: 11px; }
+.community-comment-meta time { color: #718c9b; font-size: 11px; }
+.community-comment-body p { margin: 8px 0 10px; color: #bed0d8; font-size: 15px; line-height: 1.75; white-space: pre-wrap; }
 .community-comment-actions { display: flex; align-items: center; gap: 12px; }
-.community-comment-actions button { padding: 3px 0; border: 0; color: #658393; background: transparent; font-size: 10px; cursor: pointer; }
+.community-comment-actions button { padding: 4px 0; border: 0; color: #7696a5; background: transparent; font-size: 12px; cursor: pointer; }
 .community-comment-actions button:hover, .community-comment-actions button.is-active { color: #bce8ee; }
 .community-comment-actions .community-like.is-active { color: #f2a6c3; }
 .community-comment-actions button.is-danger:hover { color: #ef9eae; }

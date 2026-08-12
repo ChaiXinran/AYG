@@ -1,4 +1,4 @@
-import { COMMUNITY_CONFIG, isLiveCommunityConfigured } from '../../config/community.js';
+﻿import { COMMUNITY_CONFIG, isLiveCommunityConfigured } from '../../config/community.js';
 
 const STORAGE_PREFIX = 'musical-community-demo-v1';
 const USER_KEY = `${STORAGE_PREFIX}:user`;
@@ -6,6 +6,7 @@ const COMMENTS_KEY = `${STORAGE_PREFIX}:comments`;
 const FAVORITES_KEY = `${STORAGE_PREFIX}:favorites`;
 const LIKES_KEY = `${STORAGE_PREFIX}:likes`;
 const EVENT_MARKS_KEY = `${STORAGE_PREFIX}:event-marks`;
+const EVENT_LIKES_KEY = `${STORAGE_PREFIX}:event-likes`;
 const SUBMISSIONS_KEY = `${STORAGE_PREFIX}:submissions`;
 const DISCUSSION_POSTS_KEY = `${STORAGE_PREFIX}:discussion-posts`;
 
@@ -144,6 +145,7 @@ function normalizeLiveEvent(event) {
     sourceUrls: [...new Set([event.source_url, ...(metadata.source_urls || [])].filter(Boolean))],
     mediaUrls: [...new Set([...(Array.isArray(event.images) ? event.images : []), ...(Array.isArray(metadata.media_urls) ? metadata.media_urls : [])])],
     contributors: Array.isArray(event.contributors) ? event.contributors : [],
+    legacyIds: Array.isArray(metadata.legacy_ids) ? metadata.legacy_ids.map(String) : [],
     tourBatch: metadata.tour_batches?.filter(Boolean).join('、') || '',
     tourSummary: metadata.tour_summaries?.filter(Boolean).join('\n') || '',
     personIds,
@@ -526,19 +528,15 @@ export class CommunityClient {
   async listEvents() {
     if (this.mode === 'demo') return [];
     const events = [];
-    let before = '';
-    for (let page = 0; page < 20; page += 1) {
-      const query = new URLSearchParams({ site_id: this.config.siteId, limit: '100' });
-      if (before) query.set('before', before);
+    const pageSize = 100;
+    for (let page = 0; page < 100; page += 1) {
+      const query = new URLSearchParams({ site_id: this.config.siteId, limit: String(pageSize), offset: String(page * pageSize) });
       const response = await fetch(`${this.config.apiBaseUrl}/v1/events?${query}`);
       if (!response.ok) throw new Error('活动社区数据加载失败');
       const payload = await response.json();
       const batch = payload.data || [];
       events.push(...batch);
-      if (batch.length < 100) break;
-      const nextBefore = batch.at(-1)?.start_time;
-      if (!nextBefore || nextBefore === before) break;
-      before = nextBefore;
+      if (batch.length < pageSize) break;
     }
     return events.map(normalizeLiveEvent);
   }
@@ -593,17 +591,20 @@ export class CommunityClient {
     if (error) throw error;
     const userIds = [...new Set((comments || []).map((comment) => comment.user_id))];
     const commentIds = (comments || []).map((comment) => comment.id);
-    const [{ data: profiles }, { data: likes }] = await Promise.all([
+    const [{ data: profiles }, { data: likeCounts }, { data: myLikes }] = await Promise.all([
       userIds.length ? this.supabase.from('profiles').select('user_id,display_name,avatar_key').in('user_id', userIds) : { data: [] },
-      commentIds.length ? this.supabase.from('comment_likes').select('user_id,comment_id').in('comment_id', commentIds) : { data: [] },
+      commentIds.length ? this.supabase.from('comment_like_counts').select('comment_id,like_count').in('comment_id', commentIds) : { data: [] },
+      this.user && commentIds.length ? this.supabase.from('comment_likes').select('comment_id').eq('user_id', this.user.id).in('comment_id', commentIds) : { data: [] },
     ]);
     const profileById = new Map((profiles || []).map((profile) => [profile.user_id, profile]));
+    const countById = new Map((likeCounts || []).map((item) => [item.comment_id, Number(item.like_count || 0)]));
+    const likedIds = new Set((myLikes || []).map((item) => item.comment_id));
     return (comments || []).map((comment) => ({
       ...comment,
       display_name: profileById.get(comment.user_id)?.display_name || '社区用户',
       avatar_url: this.avatarUrl(profileById.get(comment.user_id)?.avatar_key),
-      like_count: (likes || []).filter((like) => like.comment_id === comment.id).length,
-      liked_by_me: (likes || []).some((like) => like.comment_id === comment.id && like.user_id === this.user?.id),
+      like_count: countById.get(comment.id) || 0,
+      liked_by_me: likedIds.has(comment.id),
     }));
   }
 
@@ -699,28 +700,37 @@ export class CommunityClient {
   }
 
   async getEventMarks(events = []) {
-    const result = new Map(events.map((event) => [demoEventKey(event), { watched: false, recommended: false, favorite: false }]));
-    if (!this.user) return result;
+    const result = new Map(events.map((event) => [demoEventKey(event), { watched: false, recommended: false, favorite: false, liked: false, like_count: 0 }]));
     if (this.mode === 'demo') {
       const marks = readStorage(EVENT_MARKS_KEY, []);
       const favorites = new Set(readStorage(FAVORITES_KEY, []).map((item) => item.event_key));
+      const likes = readStorage(EVENT_LIKES_KEY, []);
       marks.forEach((mark) => {
         const state = result.get(mark.event_key);
         if (state && ['watched', 'recommended'].includes(mark.mark_type)) state[mark.mark_type] = true;
       });
       result.forEach((state, key) => { state.favorite = favorites.has(key); });
+      likes.forEach((like) => {
+        const state = result.get(like.event_key);
+        if (!state) return;
+        state.like_count += 1;
+        state.liked ||= like.user_id === (this.user?.id || 'demo-user');
+      });
       return result;
     }
     const ids = [...new Set(events.map((event) => event.communityId).filter(Boolean))];
     for (let index = 0; index < ids.length; index += 100) {
       const batch = ids.slice(index, index + 100);
-      const [{ data: marks, error: marksError }, { data: favorites, error: favoritesError }] = await Promise.all([
-        this.supabase.from('event_user_marks').select('event_id,mark_type').eq('user_id', this.user.id).in('event_id', batch),
-        this.supabase.from('event_favorites').select('event_id').eq('user_id', this.user.id).in('event_id', batch),
+      const [{ data: marks, error: marksError }, { data: favorites, error: favoritesError }, { data: likeCounts, error: likesError }, { data: myLikes }] = await Promise.all([
+        this.user ? this.supabase.from('event_user_marks').select('event_id,mark_type').eq('user_id', this.user.id).in('event_id', batch) : { data: [], error: null },
+        this.user ? this.supabase.from('event_favorites').select('event_id').eq('user_id', this.user.id).in('event_id', batch) : { data: [], error: null },
+        this.supabase.from('event_like_counts').select('event_id,like_count').in('event_id', batch),
+        this.user ? this.supabase.from('event_likes').select('event_id').eq('user_id', this.user.id).in('event_id', batch) : { data: [], error: null },
       ]);
       if (marksError && !['42P01', 'PGRST205'].includes(marksError.code)) throw marksError;
       if (marksError) console.warn('活动标记表尚未部署：', marksError.message);
       if (favoritesError) throw favoritesError;
+      if (likesError && !['42P01', 'PGRST205'].includes(likesError.code)) throw likesError;
       (marks || []).forEach((mark) => {
         const state = result.get(String(mark.event_id));
         if (state && ['watched', 'recommended'].includes(mark.mark_type)) state[mark.mark_type] = true;
@@ -729,8 +739,34 @@ export class CommunityClient {
         const state = result.get(String(favorite.event_id));
         if (state) state.favorite = true;
       });
+      (likeCounts || []).forEach((like) => { const state = result.get(String(like.event_id)); if (state) state.like_count = Number(like.like_count || 0); });
+      (myLikes || []).forEach((like) => { const state = result.get(String(like.event_id)); if (state) state.liked = true; });
     }
     return result;
+  }
+
+  async toggleEventLike(event, currentState = false) {
+    if (!this.user) throw new Error('请先登录后再点赞活动');
+    this.requireApproved('点赞活动');
+    const key = demoEventKey(event);
+    if (this.mode === 'demo') {
+      const likes = readStorage(EVENT_LIKES_KEY, []);
+      const userId = this.user.id || 'demo-user';
+      const index = likes.findIndex((item) => item.event_key === key && item.user_id === userId);
+      if (index >= 0) likes.splice(index, 1);
+      else likes.push({ event_key: key, user_id: userId, created_at: new Date().toISOString() });
+      writeStorage(EVENT_LIKES_KEY, likes);
+      return index < 0;
+    }
+    if (!event?.communityId) throw new Error('该活动尚未与共享活动 ID 建立映射');
+    if (currentState) {
+      const { error } = await this.supabase.from('event_likes').delete().eq('user_id', this.user.id).eq('event_id', event.communityId);
+      if (error) throw error;
+      return false;
+    }
+    const { error } = await this.supabase.from('event_likes').insert({ user_id: this.user.id, event_id: event.communityId });
+    if (error) throw error;
+    return true;
   }
 
   async toggleEventMark(event, markType, currentState = false) {

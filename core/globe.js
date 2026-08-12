@@ -22,6 +22,7 @@ export class EventGlobe {
     this.backgroundImage = backgroundImage;
     this._hasProvinces = this.provinceFeatures.length > 0;
     this.filteredEvents = [...events];
+    this.eventMarks = new Map();
     this.onEventSelect = onEventSelect;
     this.onClusterSelect = onClusterSelect;
     this.onChinaClick = onChinaClick;
@@ -401,6 +402,7 @@ export class EventGlobe {
       .classed('is-cluster', (d) => d.events.length > 1)
       .classed('is-china-light', (d) => this.isChinaEvent(d.events[0]))
       .classed('is-selected', (d) => d.events.length === 1 && d.events[0].id === this.selectedEventId)
+      .classed('has-liked', (d) => d.events.some((item) => this.markState(item).liked))
       .style('cursor', 'pointer')
       .on('mouseenter', () => {
         // 悬停时暂停自动旋转，方便点击
@@ -468,7 +470,7 @@ export class EventGlobe {
       .select('.node-label')
       .attr('dx', (d) => (d.events.length > 1 ? 18 : 11))
       .attr('dy', 4)
-      .text((d) => d.events.length > 1 && d.label ? `${d.label} · ${d.events.length} 场` : d.label);
+      .text((d) => { const likes=d.events.reduce((sum,item)=>sum+Number(this.markState(item).like_count||0),0); const label=d.events.length>1&&d.label?`${d.label} · ${d.events.length} 场`:d.label; return likes?`${label||'活动'} · ♥ ${likes}`:label; });
 
     // 独立的脉冲圆圈图层，不影响 g.map-node 的边界框稳定性
     const pulseGroups = this.pulseLayer
@@ -599,7 +601,7 @@ export class EventGlobe {
       const eventDates = Array.isArray(event.dates) && event.dates.length
         ? event.dates.map((item) => item.date).filter(Boolean)
         : event.date ? [event.date.split('~')[0].trim()] : [];
-      const dateMatch = eventDates.some((date) => (!startDate || date >= startDate) && (!endDate || date <= endDate));
+      const dateMatch = !eventDates.length || eventDates.some((date) => (!startDate || date >= startDate) && (!endDate || date <= endDate));
       const categoryMatch = !categories.length ? false : categories.includes(event.category);
       const locationText = [event.country, event.city, event.venue].filter(Boolean).join(' ').toLocaleLowerCase();
       const keywordText = [event.title, event.category, event.country, event.city, event.venue, event.role, event.description]
@@ -619,6 +621,9 @@ export class EventGlobe {
     this._expandedClusterId = null;
     this.render();
   }
+
+  markState(event) { return this.eventMarks.get(String(event?.communityId || event?.id)) || {}; }
+  setEventMarks(marks = new Map()) { this.eventMarks = marks; this.renderMarkers(); }
 
   setAutoRotate(value) {
     this.autoRotate = value;

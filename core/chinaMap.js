@@ -43,12 +43,15 @@ function eventDates(event) {
 }
 
 export class ChinaMap {
-  constructor({ container, events, backgroundImage, onBack }) {
+  constructor({ container, events, backgroundImage, onBack, eventMarks = new Map(), onToggleEventMark = null, onToggleEventLike = null }) {
     this.container = d3.select(container);
     this.events = (events || []).filter((event) => event.lon >= 73 && event.lon <= 135 && event.lat >= 17 && event.lat <= 54);
     this.filteredEvents = [...this.events];
     this.backgroundImage = backgroundImage;
     this.onBack = onBack;
+    this.eventMarks = eventMarks;
+    this.onToggleEventMark = onToggleEventMark;
+    this.onToggleEventLike = onToggleEventLike;
     this.provinceFeatures = [];
     this.selectedEventId = null;
     this.selectedProvince = null;
@@ -344,6 +347,10 @@ export class ChinaMap {
       (exit) => exit.remove()
     )
       .attr('data-lod', level)
+      .classed('has-watched', (d) => d.events.some((event) => this.markState(event).watched))
+      .classed('has-recommended', (d) => d.events.some((event) => this.markState(event).recommended))
+      .classed('has-favorite', (d) => d.events.some((event) => this.markState(event).favorite))
+      .classed('has-liked', (d) => d.events.some((event) => this.markState(event).liked))
       .attr('transform', (d) => { const [x, y] = this.projection([d.lon, d.lat]); return `translate(${x},${y})`; })
       .on('click', (event, d) => {
         event.stopPropagation();
@@ -355,7 +362,10 @@ export class ChinaMap {
     nodes.select('.event-node-halo').attr('fill', (d) => d.color);
     nodes.select('.event-node-core').attr('fill', (d) => d.color);
     nodes.select('.lod-node-count').text((d) => d.level === 'event' ? '' : d.events.length);
-    nodes.select('.lod-hover-label').text((d) => d.shortLabel);
+    nodes.select('.lod-hover-label').text((d) => {
+      const likeCount = d.events.reduce((sum, event) => sum + Number(this.markState(event).like_count || 0), 0);
+      return `${d.shortLabel}${likeCount ? `  ♥ ${likeCount}` : ''}`;
+    });
   }
 
   aggregateEvents(events, level) {
@@ -470,6 +480,51 @@ export class ChinaMap {
     drawer.select('#cmDesc').text(d.description || '暂无活动描述');
     drawer.select('#cmTour').text(d.tourSummary || '');
     fillEventLinks(this.container.select('#cmLinks').node(), d);
+    this.renderDrawerMarks(d);
+  }
+
+  markState(event) {
+    return this.eventMarks.get(String(event?.communityId || event?.id)) || {};
+  }
+
+  setEventMarks(marks = new Map()) {
+    this.eventMarks = marks;
+    this.renderMarkers();
+  }
+
+  renderDrawerMarks(event) {
+    const state = this.markState(event);
+    const labels = {
+      watched: state.watched ? '◉ 已看过' : '○ 看过',
+      recommended: state.recommended ? '★ 已推荐' : '☆ 推荐',
+      favorite: state.favorite ? '♥ 已收藏' : '♡ 收藏',
+      liked: `${state.liked ? '♥ 已赞' : '♡ 点赞'} ${Number(state.like_count || 0)}`,
+    };
+    this.container.select('#cmEventMarks').selectAll('button').data(Object.keys(labels)).join('button')
+      .attr('type', 'button')
+      .attr('data-event-mark', (type) => type)
+      .classed('is-active', (type) => Boolean(state[type]))
+      .attr('aria-pressed', (type) => String(Boolean(state[type])))
+      .text((type) => labels[type])
+      .on('click', async (clickEvent, type) => {
+        clickEvent.stopPropagation();
+        if (type === 'liked' ? !this.onToggleEventLike : !this.onToggleEventMark) return;
+        const button = clickEvent.currentTarget;
+        button.disabled = true;
+        try {
+          const previous = this.markState(event);
+          const active = type === 'liked'
+            ? await this.onToggleEventLike(event, Boolean(previous.liked))
+            : await this.onToggleEventMark(event, type, Boolean(previous[type]));
+          const next = { watched: false, recommended: false, favorite: false, liked: false, like_count: 0, ...previous, [type]: active };
+          if (type === 'liked') next.like_count = Math.max(0, Number(previous.like_count || 0) + (active ? 1 : -1));
+          this.eventMarks.set(String(event.communityId || event.id), next);
+          this.renderDrawerMarks(event);
+          this.renderMarkers();
+        } finally {
+          button.disabled = false;
+        }
+      });
   }
 
   renderEventCard(svg) {
@@ -486,6 +541,7 @@ export class ChinaMap {
       <p id="cmDesc" class="cm-drawer-description"></p>
       <p id="cmTour" class="cm-drawer-tour"></p>
       <div id="cmLinks" class="event-detail-links" hidden></div>
+      <div id="cmEventMarks" class="cm-event-marks" aria-label="活动标记"></div>
     `);
     svg.select('#cmClose').on('click', (event) => { event.stopPropagation(); this.closeDrawer(); });
   }
