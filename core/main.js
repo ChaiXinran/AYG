@@ -6,7 +6,9 @@ import { EventTimeline } from './components/timeline/EventTimeline.js';
 import { fillEventLinks } from './components/event-details/eventLinks.js';
 import { NavigationRail } from './components/navigation/NavigationRail.js?v=32';
 import { defaultTourForPerson } from './config/tours.js';
-import { mountPersonalAuth } from './auth/personalAuth.js?v=1';
+import { CommunityClient } from './components/community/communityClient.js?v=1';
+import { CommunityPanel } from './components/community/CommunityPanel.js?v=1';
+import { loadEventCatalog } from './data/eventCatalog.js?v=1';
 
 async function loadProvinceData() {
   try {
@@ -25,7 +27,9 @@ function getEventDates(event) {
 }
 
 const person = activePerson();
-const events = person.events;
+const communityClient = new CommunityClient();
+await communityClient.init().catch((error) => console.warn('社区账号初始化失败：', error.message));
+const events = await loadEventCatalog(communityClient, person.events);
 const earthBackgroundUrl = new URL(person.backgrounds.earth, window.location.href).href;
 document.documentElement.style.setProperty('--person-earth-background', `url("${earthBackgroundUrl}")`);
 localStorage.setItem('event-earth-person', person.id);
@@ -55,7 +59,7 @@ app.innerHTML = `
               ${people.map((item) => `<option value="${item.id}"${item.id === person.id ? ' selected' : ''}>${item.name}</option>`).join('')}
             </select>
           </label>
-          <button class="ui-button" type="button">+ 添加活动</button>
+          <button id="submissionButton" class="ui-button" type="button">+ 添加活动</button>
           <button id="accountButton" class="ui-button" type="button">登录 / 注册</button>
         </div>
       </header>
@@ -134,14 +138,20 @@ app.innerHTML = `
         </div>
         <div id="cardMeta" class="event-meta"></div>
         <div id="cardDescription" class="event-description"></div>
-        <div id="cardLinks" class="event-detail-links" hidden></div>
+        <div id="cardLinks" class="event-detail-links" hidden></div><button id="eventDiscussionButton" class="ui-button" type="button">进入活动讨论</button>
       </section>
     </main>
   </div>
 `;
 
 const card = document.querySelector('#eventCard');
-mountPersonalAuth({ button: document.querySelector('#accountButton') }).catch((error) => console.warn('账号入口加载失败：', error.message));
+const community = new CommunityPanel({ client: communityClient, onStateChange: renderAccount });
+community.init().catch((error) => console.warn('社区界面加载失败：', error.message));
+function renderAccount(user = communityClient.user) { const button = document.querySelector('#accountButton'); button.textContent = user ? `${communityClient.access.user_group === 'yunv' ? '☁✦' : '☁'} ${user.display_name || user.user_metadata?.display_name || user.email?.split('@')[0]}` : '登录 / 注册'; }
+renderAccount();
+document.querySelector('#submissionButton').addEventListener('click', () => { window.location.href = '/submission/'; });
+document.querySelector('#accountButton').addEventListener('click', () => communityClient.user ? window.location.href = '/profile/' : community.open('account'));
+document.querySelector('#eventDiscussionButton').addEventListener('click', () => community.open('discussion'));
 document.querySelector('#personSelect').addEventListener('change', (event) => {
   localStorage.setItem('event-earth-person', event.target.value);
   window.location.href = personUrl(event.target.value);
@@ -150,6 +160,7 @@ new NavigationRail({
   container: document.body,
   active: 'earth',
   actions: [
+    { id: 'openSubmission', label: '添加活动', icon: '+', href: '/submission/' },
     { id: 'openTourMaps', label: '巡演地图', icon: '巡', href: personUrl(person.id, `./tour.html?work=${defaultTourForPerson(person.id)?.id || ''}`) },
     { id: 'openSidebar', label: '筛选活动', icon: '⌕', controls: 'filterPanel', expanded: false },
   ],
@@ -168,6 +179,7 @@ const timeline = new EventTimeline({
 });
 
 function openEventCard(event) {
+  community.selectEvent(event);
   document.querySelector('#cardCategory').textContent = event.category;
   document.querySelector('#cardTitle').textContent = event.title;
   document.querySelector('#cardMeta').textContent = `${event.dateLabel || event.date} · ${event.city} · ${event.venue}${event.role ? ' · ' + event.role : ''}`;

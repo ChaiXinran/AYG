@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="云朵与星星">
+  <defs>
+    <linearGradient id="cloud" x1="12" y1="48" x2="52" y2="17" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#83d8e7"/><stop offset="1" stop-color="#e8fbff"/>
+    </linearGradient>
+    <linearGradient id="star" x1="42" y1="8" x2="55" y2="25" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff4a7"/><stop offset="1" stop-color="#8fdcf1"/>
+    </linearGradient>
+  </defs>
+  <path d="M17.4 49.5h27.1a10.5 10.5 0 0 0 1.7-20.8A16.7 16.7 0 0 0 14.5 27a11.4 11.4 0 0 0 2.9 22.5Z" fill="none" stroke="url(#cloud)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="m48.5 7.5 2.2 6.1 6.1 2.2-6.1 2.2-2.2 6.1-2.2-6.1-6.1-2.2 6.1-2.2 2.2-6.1Z" fill="url(#star)"/>
+  <path d="m57 29 1.1 3 2.9 1.1-2.9 1-1.1 3-1.1-3-2.9-1 2.9-1.1 1.1-3ZM12 13l1.3 3.7L17 18l-3.7 1.3L12 23l-1.3-3.7L7 18l3.7-1.3L12 13Z" fill="#b5ebf6"/>
+</svg>

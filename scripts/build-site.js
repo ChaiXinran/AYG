@@ -31,6 +31,8 @@ fs.rmSync(outputDir, { recursive: true, force: true });
 fs.mkdirSync(outputDir, { recursive: true });
 
 copy(`sites/${site}`, '.');
+if (fs.existsSync(path.join(repoRoot, `sites/${site}/profile`))) copy(`sites/${site}/profile`, 'profile');
+if (fs.existsSync(path.join(repoRoot, `sites/${site}/submission`))) copy(`sites/${site}/submission`, 'submission');
 copy('background', 'background');
 
 if (site !== 'home') {

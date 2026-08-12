@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <base href="/" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#07111d" />
+    <meta name="description" content="Musical Atlas 社区用户资料与账号设置。" />
+    <title>我的账号 · Musical Atlas</title>
+    <link rel="stylesheet" href="./core/components/community/community.css?v=12" />
+    <link rel="stylesheet" href="./core/profile/profile.css?v=5" />
+  </head>
+  <body>
+    <header class="profile-topbar">
+      <a class="profile-brand" href="./"><span aria-hidden="true">◎</span> MUSICAL ATLAS</a>
+      <nav aria-label="用户页面导航">
+        <a href="/">活动地图</a>
+        <a href="/submission/">添加活动</a>
+        <a class="profile-notification-link" href="/profile/?tab=notifications" aria-label="查看通知" data-notification-link hidden><span aria-hidden="true">🔔</span><em data-notification-badge hidden>0</em></a>
+        <button type="button" data-action="signout" hidden>退出登录</button>
+      </nav>
+    </header>
+
+    <main class="profile-page" id="profileApp">
+      <div class="profile-loading">正在读取账号资料…</div>
+    </main>
+
+    <div class="profile-toast" role="status" aria-live="polite"></div>
+    <script type="module" src="./core/profile/profile.js?v=5"></script>
+  </body>
+</html>
