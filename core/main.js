@@ -6,6 +6,7 @@ import { EventTimeline } from './components/timeline/EventTimeline.js';
 import { fillEventLinks } from './components/event-details/eventLinks.js';
 import { NavigationRail } from './components/navigation/NavigationRail.js?v=32';
 import { defaultTourForPerson } from './config/tours.js';
+import { mountPersonalAuth } from './auth/personalAuth.js?v=1';
 
 async function loadProvinceData() {
   try {
@@ -55,7 +56,7 @@ app.innerHTML = `
             </select>
           </label>
           <button class="ui-button" type="button">+ 添加活动</button>
-          <button class="ui-button" type="button">登录</button>
+          <button id="accountButton" class="ui-button" type="button">登录 / 注册</button>
         </div>
       </header>
 
@@ -140,6 +141,7 @@ app.innerHTML = `
 `;
 
 const card = document.querySelector('#eventCard');
+mountPersonalAuth({ button: document.querySelector('#accountButton') }).catch((error) => console.warn('账号入口加载失败：', error.message));
 document.querySelector('#personSelect').addEventListener('change', (event) => {
   localStorage.setItem('event-earth-person', event.target.value);
   window.location.href = personUrl(event.target.value);
