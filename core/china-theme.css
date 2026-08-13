@@ -12,7 +12,7 @@ body::before {
   position: fixed;
   z-index: -2;
   inset: -24px;
-  background: var(--person-china-background) center / cover no-repeat;
+  background: var(--site-background-image, var(--person-china-background)) center / cover no-repeat;
   filter: blur(14px) saturate(.78) brightness(.58);
   transform: scale(1.03);
   content: '';

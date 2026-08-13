@@ -230,7 +230,7 @@ function userManagementMarkup(item) {
 
 function backgroundManagementMarkup() {
   return `<section class="community-review-section is-category profile-background-manager">
-    <div class="community-review-heading"><div><h3>全站背景</h3><p>上传一次即可同步应用到首页、地球、地图、分类、讨论区、用户页和巡演地图。</p></div><span>仅一级管理员</span></div>
+    <div class="community-review-heading"><div><h3>个人站全站背景</h3><p>统一应用到个人站主页面、活动地球、中国地图、分类、投稿和用户页。</p></div><span>仅一级管理员</span></div>
     <div class="profile-background-preview" style="background-image:url('${escapeHtml(siteBackgroundUrl)}')" role="img" aria-label="当前全站背景预览"></div>
     <form class="profile-background-form" data-background-form>
       <label><span>选择新的背景图片或 GIF</span><input type="file" name="background" accept="image/jpeg,image/png,image/webp,image/avif,image/gif" required /><small>支持 JPG、PNG、WebP、AVIF、GIF，最大 25 MB。</small></label>
@@ -445,9 +445,9 @@ async function uploadAvatar(file) {
 async function uploadSiteBackground(form) {
   if (account?.management_level !== 1) return toast('只有一级管理员可以更改全站背景', true);
   const file = new FormData(form).get('background');
-  const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+  const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif'];
   if (!(file instanceof File) || !file.size) return toast('请选择一张背景图片', true);
-  if (!allowed.includes(file.type)) return toast('请选择 JPG、PNG、WebP 或 AVIF 图片', true);
+  if (!allowed.includes(file.type)) return toast('请选择 JPG、PNG、WebP、AVIF 或 GIF 图片', true);
   if (file.size > 25 * 1024 * 1024) return toast('背景图片不能超过 25 MB', true);
   const button = form.querySelector('button[type="submit"]');
   const state = form.querySelector('[data-background-state]');

@@ -32,7 +32,7 @@ const communityClient = new CommunityClient();
 const reportLoading=(progress,label)=>dispatchEvent(new CustomEvent('musical-atlas:loading-progress',{detail:{progress,label}}));reportLoading(18,'正在初始化社区账号');
 await communityClient.init().catch((error) => console.warn('社区账号初始化失败：', error.message));
 const events = await loadEventCatalog(communityClient, person.events);
-await applySiteBackground();reportLoading(58,'正在绘制活动地图');
+const siteBackgroundUrl = await applySiteBackground();reportLoading(58,'正在绘制活动地图');
 const eventMarks = await communityClient.getEventMarks(events).catch(() => new Map());
 const earthBackgroundUrl = new URL(person.backgrounds.earth, window.location.href).href;
 document.documentElement.style.setProperty('--person-earth-background', `url("${earthBackgroundUrl}")`);
@@ -218,7 +218,7 @@ let globe;
     events,
     cityLights,
     provinceFeatures,
-    backgroundImage: person.backgrounds.earth,
+    backgroundImage: siteBackgroundUrl,
     onEventSelect: openEventCard,
     onClusterSelect: closeEventCard,
     onChinaClick: () => { window.location.href = personUrl(person.id, './china.html'); }

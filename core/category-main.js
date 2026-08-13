@@ -4,9 +4,11 @@ import { getCategoryItems, getCategoryPage } from './components/navigation/categ
 import { fillEventLinks } from './components/event-details/eventLinks.js';
 import { CommunityClient } from './components/community/communityClient.js?v=4';
 import { eventKey, loadEventCatalog } from './data/eventCatalog.js?v=2';
+import { applySiteBackground } from './config/siteBackground.js';
 
 const type = new URLSearchParams(window.location.search).get('type') || 'musical';
 const person = activePerson();
+await applySiteBackground();
 const category = getCategoryPage(type);
 const categoryBackground = person.backgrounds.categories?.[category.id] || person.backgrounds.category;
 const categoryBackgroundUrl = new URL(categoryBackground, window.location.href).href;

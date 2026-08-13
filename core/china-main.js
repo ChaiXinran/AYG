@@ -4,9 +4,11 @@ import { activePerson, personUrl } from './data/personRegistry.js?v=36';
 import { NavigationRail } from './components/navigation/NavigationRail.js?v=32';
 import { loadEventCatalog } from './data/eventCatalog.js?v=2';
 import { CommunityClient } from './components/community/communityClient.js?v=4';
+import { applySiteBackground } from './config/siteBackground.js';
 
 async function init() {
   const person = activePerson();
+  const siteBackgroundUrl = await applySiteBackground();
   const communityClient = new CommunityClient();
   await communityClient.init().catch((error) => console.warn('社区账号初始化失败：', error.message));
   const events = await loadEventCatalog(communityClient, person.events);
@@ -31,7 +33,7 @@ async function init() {
   const map = new ChinaMap({
     container: document.body,
     events,
-    backgroundImage: person.backgrounds.chinaMap,
+    backgroundImage: siteBackgroundUrl,
     eventMarks,
     onToggleEventMark: async (event, type, current) => {
       if (!communityClient.user) {
