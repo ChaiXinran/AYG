@@ -52,7 +52,7 @@ select {
   z-index: 0;
   background:
     linear-gradient(rgba(3, 9, 20, .7), rgba(3, 9, 20, .7)),
-    var(--person-earth-background) center / cover no-repeat;
+    var(--site-background-image, var(--person-earth-background)) center / cover no-repeat;
   filter: blur(10px);
   transform: scale(1.02);
   pointer-events: none;
@@ -786,6 +786,7 @@ body:has(.app-shell:not(.sidebar-collapsed)) .navigation-rail {
 .map-node.is-selected .node-body {
   stroke-width: 2.8px;
 }
+.promotion-splash{position:fixed;z-index:9999;inset:0;display:grid;place-items:center;overflow:hidden;background:#02060a;opacity:0;transition:opacity .4s}.promotion-splash[hidden]{display:none}.promotion-splash.is-visible{opacity:1}.promotion-splash img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.promotion-shade{position:absolute;inset:0;background:linear-gradient(180deg,#01070c42,#01080ed1)}.promotion-loader{position:relative;z-index:1;display:grid;width:min(720px,calc(100vw - 48px));place-items:center;text-align:center}.promotion-loader>span{color:#79d1e4;letter-spacing:.3em}.promotion-loader strong{margin:18px;font:400 clamp(36px,7vw,86px)/1 Georgia,serif}.promotion-loader p{min-height:24px}.promotion-progress{width:min(460px,72vw);height:3px;margin:30px 0 12px;background:#abdEE833}.promotion-progress i{display:block;width:8%;height:100%;background:#70d9d0;transition:width .3s}
 .map-node.has-liked .node-label { fill:#f3a7c1; }
 
 .map-node.is-cluster .node-orbit {

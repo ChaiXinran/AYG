@@ -9,6 +9,7 @@ import { defaultTourForPerson } from './config/tours.js';
 import { CommunityClient } from './components/community/communityClient.js?v=4';
 import { CommunityPanel } from './components/community/CommunityPanel.js?v=1';
 import { loadEventCatalog } from './data/eventCatalog.js?v=2';
+import { applySiteBackground } from './config/siteBackground.js';
 
 async function loadProvinceData() {
   try {
@@ -28,8 +29,10 @@ function getEventDates(event) {
 
 const person = activePerson();
 const communityClient = new CommunityClient();
+const reportLoading=(progress,label)=>dispatchEvent(new CustomEvent('musical-atlas:loading-progress',{detail:{progress,label}}));reportLoading(18,'正在初始化社区账号');
 await communityClient.init().catch((error) => console.warn('社区账号初始化失败：', error.message));
 const events = await loadEventCatalog(communityClient, person.events);
+await applySiteBackground();reportLoading(58,'正在绘制活动地图');
 const eventMarks = await communityClient.getEventMarks(events).catch(() => new Map());
 const earthBackgroundUrl = new URL(person.backgrounds.earth, window.location.href).href;
 document.documentElement.style.setProperty('--person-earth-background', `url("${earthBackgroundUrl}")`);
@@ -54,6 +57,7 @@ app.innerHTML = `
           <div class="brand-subtitle">${person.subtitle}</div>
         </div>
         <div class="topbar-actions">
+          <a class="ui-button" href="/">← 返回主页</a>
           <label class="person-switcher">
             <span>人物</span>
             <select id="personSelect" aria-label="切换人物">
@@ -220,6 +224,7 @@ let globe;
     onChinaClick: () => { window.location.href = personUrl(person.id, './china.html'); }
   });
   globe.setEventMarks(eventMarks);
+  reportLoading(96,'正在启动地球交互');requestAnimationFrame(()=>requestAnimationFrame(()=>dispatchEvent(new CustomEvent('musical-atlas:earth-ready'))));
 
   document.querySelector('#applyFilters').addEventListener('click', applyFilters);
   document.querySelector('#resetFilters').addEventListener('click', resetFilters);

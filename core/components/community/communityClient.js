@@ -325,7 +325,7 @@ export class CommunityClient {
       const { data } = await this.supabase.auth.getSession();
       if (data.session?.access_token) headers.Authorization = `Bearer ${data.session.access_token}`;
     }
-    const response = await fetch(`${this.config.apiBaseUrl}/v1/announcements?limit=${Math.min(Math.max(Number(limit) || 50, 1), 100)}`, { headers });
+    const response = await fetch(`${this.config.apiBaseUrl}/v1/announcements?site_id=${encodeURIComponent(this.config.siteId)}&limit=${Math.min(Math.max(Number(limit) || 50, 1), 100)}`, { headers });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error?.message || '无法读取站内通知');
     return payload.data || { items: [], audience: this.user ? 'registered' : 'guest' };

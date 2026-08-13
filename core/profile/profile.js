@@ -2,6 +2,7 @@ import { COMMUNITY_CONFIG } from '../config/community.js';
 import { applySiteBackground, setSiteBackground } from '../config/siteBackground.js';
 
 let siteBackgroundUrl = await applySiteBackground();
+let promotionUrl = await fetch(`${COMMUNITY_CONFIG.apiBaseUrl}/v1/site-settings/promotion?site_id=${encodeURIComponent(COMMUNITY_CONFIG.siteId)}`).then((r) => r.ok ? r.json() : null).then((p) => p?.data?.promotion_url || '').catch(() => '');
 
 const app = document.querySelector('#profileApp');
 const toastElement = document.querySelector('.profile-toast');
@@ -137,7 +138,7 @@ function moderationStatusMarkup() {
   return `<section class="profile-card profile-moderation-card is-banned">
     <header class="profile-card-header"><h2>账号已永久封禁</h2><p>账号互动权限已永久关闭，登录邮箱无法用于创建新的可用账号。</p></header>
     <div class="profile-moderation-body"><p>${escapeHtml(ban?.reason || '举报成立，账号被永久封禁。')}</p>${appealMarkup}</div>
-  </section>`;
+  </section><section class="community-review-section is-category profile-promotion-manager"><div class="community-review-heading"><div><h3>加载宣传版面</h3><p>进入活动地球时全屏展示至少 2 秒，支持静态图片和 GIF 动图。</p></div><span>仅一级管理员</span></div>${promotionUrl ? `<img class="profile-promotion-preview" src="${escapeHtml(promotionUrl)}" alt="当前宣传版面" />` : ''}<form class="profile-background-form" data-promotion-form><label><span>选择宣传图片或 GIF</span><input type="file" name="promotion" accept="image/jpeg,image/png,image/webp,image/avif,image/gif" required /></label><button class="community-submit" type="submit">上传并启用 <span>→</span></button><p class="profile-background-state" data-promotion-state></p></form></section>`;
 }
 
 function profileContentMarkup(user, profile) {
@@ -232,11 +233,11 @@ function backgroundManagementMarkup() {
     <div class="community-review-heading"><div><h3>全站背景</h3><p>上传一次即可同步应用到首页、地球、地图、分类、讨论区、用户页和巡演地图。</p></div><span>仅一级管理员</span></div>
     <div class="profile-background-preview" style="background-image:url('${escapeHtml(siteBackgroundUrl)}')" role="img" aria-label="当前全站背景预览"></div>
     <form class="profile-background-form" data-background-form>
-      <label><span>选择新的背景图片</span><input type="file" name="background" accept="image/jpeg,image/png,image/webp,image/avif" required /><small>支持 JPG、PNG、WebP、AVIF，最大 25 MB。图片上传并通过完整性校验后才会替换现有背景。</small></label>
+      <label><span>选择新的背景图片或 GIF</span><input type="file" name="background" accept="image/jpeg,image/png,image/webp,image/avif,image/gif" required /><small>支持 JPG、PNG、WebP、AVIF、GIF，最大 25 MB。</small></label>
       <button class="community-submit" type="submit">上传并应用到全站 <span>→</span></button>
       <p class="profile-background-state" data-background-state>当前背景已经由所有页面共享。</p>
     </form>
-  </section>`;
+  </section><section class="community-review-section is-category profile-promotion-manager"><div class="community-review-heading"><div><h3>加载宣传版面</h3><p>进入活动地球时全屏展示至少 2 秒，支持静态图片和 GIF 动图。</p></div><span>仅一级管理员</span></div>${promotionUrl ? `<img class="profile-promotion-preview" src="${escapeHtml(promotionUrl)}" alt="当前宣传版面" />` : ''}<form class="profile-background-form" data-promotion-form><label><span>选择宣传图片或 GIF</span><input type="file" name="promotion" accept="image/jpeg,image/png,image/webp,image/avif,image/gif" required /></label><button class="community-submit" type="submit">上传并启用 <span>→</span></button><p class="profile-background-state" data-promotion-state></p></form></section>`;
 }
 
 function announcementAudienceOptions(selected = 'all') {
@@ -250,6 +251,8 @@ function announcementCardMarkup(item) {
       <label><span>通知标题</span><input name="title" maxlength="200" required value="${escapeHtml(item.title)}" /></label>
       <label><span>发布对象</span><select name="audience">${announcementAudienceOptions(item.audience)}</select></label>
       <label class="is-wide"><span>通知内容</span><textarea name="message" maxlength="10000" required rows="6">${escapeHtml(item.message)}</textarea></label>
+      ${item.image_url ? `<img class="profile-announcement-image is-wide" src="${escapeHtml(item.image_url)}" alt="通知配图" />` : ''}
+      <label class="is-wide"><span>通知图片或 GIF（可选）</span><input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/avif,image/gif" /></label>
       <div class="community-review-actions is-wide"><button type="submit">保存修改</button><button class="is-danger" type="button" data-admin-action="delete-announcement" data-announcement-id="${escapeHtml(item.id)}">删除通知</button></div>
     </form>
   </article>`;
@@ -262,8 +265,10 @@ function announcementManagementMarkup(items) {
       <label><span>通知标题</span><input name="title" maxlength="200" required placeholder="输入通知标题" /></label>
       <label><span>发布对象</span><select name="audience">${announcementAudienceOptions()}</select></label>
       <label class="is-wide"><span>通知内容</span><textarea name="message" maxlength="10000" required rows="6" placeholder="输入需要发布的通知内容"></textarea></label>
+      <label class="is-wide"><span>通知图片或 GIF（可选）</span><input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/avif,image/gif" /></label>
       <button class="community-submit is-wide" type="submit">立即发布 <span>→</span></button>
     </form>
+    <form class="profile-announcement-form is-create" data-admin-announcement-form><label><span>通知标题</span><input name="title" maxlength="200" required></label><label><span>发布对象</span><select name="audience">${announcementAudienceOptions()}</select></label><label class="is-wide"><span>通知内容</span><textarea name="message" maxlength="10000" required rows="6"></textarea></label><label class="is-wide"><span>通知图片或 GIF（可选）</span><input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/avif,image/gif"></label><button class="community-submit is-wide" type="submit">立即发布 <span>→</span></button></form>
     <div class="community-review-heading profile-announcement-history"><h3>已发布通知</h3><span>${items.length} 条</span></div>
     <div class="community-review-list">${items.length ? items.map(announcementCardMarkup).join('') : '<div class="community-empty-inline">当前还没有已发布通知。</div>'}</div>
   </section>`;
@@ -286,8 +291,8 @@ function adminContentMarkup() {
     !IS_PERSONAL_SITE && can('handle_reports') ? { id: 'appeals', label: '封禁申诉', count: appeals.length } : null,
     can('submit_questions') ? { id: 'questions', label: '问题库', count: pendingQuestions.length } : null,
     !IS_PERSONAL_SITE && can('manage_roles') ? { id: 'users', label: '用户权限', count: users.length } : null,
-    !IS_PERSONAL_SITE && (can('manage_site_background') || level === 1) ? { id: 'appearance', label: '网站背景', count: 0 } : null,
-    !IS_PERSONAL_SITE && (can('manage_announcements') || level === 1) ? { id: 'announcements', label: '通知发布', count: announcements.length } : null,
+    (can('manage_site_background') || level === 1) ? { id: 'appearance', label: '网站背景', count: 0 } : null,
+    (can('manage_announcements') || level === 1) ? { id: 'announcements', label: '通知发布', count: announcements.length } : null,
   ].filter(Boolean);
   if (!sections.some((item) => item.id === adminSection)) adminSection = sections[0]?.id || 'submissions';
   const empty = (message) => `<div class="community-empty-inline">${message}</div>`;
@@ -322,7 +327,7 @@ async function loadAdminQueues(renderWhileLoading = true) {
       appeals: Promise.resolve([]),
       questions: can('submit_questions') ? optionalQueue(api('/v1/admin/questions'), '问题库') : Promise.resolve([]),
       users: !IS_PERSONAL_SITE && can('manage_roles') ? optionalQueue(api('/v1/admin/users'), '用户权限') : Promise.resolve([]),
-      announcements: !IS_PERSONAL_SITE && (can('manage_announcements') || account?.management_level === 1) ? optionalQueue(api('/v1/admin/announcements'), '通知发布') : Promise.resolve([]),
+      announcements: (can('manage_announcements') || account?.management_level === 1) ? optionalQueue(api('/v1/admin/announcements'), '通知发布') : Promise.resolve([]),
     };
     const [applications, submissions, reports, appeals, questions, users, announcements] = await Promise.all([requests.applications, requests.submissions, requests.reports, requests.appeals, requests.questions, requests.users, requests.announcements]);
     adminQueues = { applications: applications || [], submissions: submissions || [], reports: reports || [], appeals: appeals || [], questions: questions || [], users: users || [], announcements: announcements || [] };
@@ -481,12 +486,15 @@ async function saveAnnouncement(form) {
     title: String(values.get('title') || '').trim(),
     message: String(values.get('message') || '').trim(),
     audience: String(values.get('audience') || 'all'),
+    site_ids: [COMMUNITY_CONFIG.siteId],
   };
   if (!payload.title || !payload.message) return toast('请填写通知标题和内容', true);
   const id = form.dataset.announcementId;
   const button = form.querySelector('button[type="submit"]');
   button.disabled = true;
   try {
+    const image = values.get('image');
+    if (image instanceof File && image.size) { if (image.size > 8 * 1024 * 1024) throw new Error('通知图片不能超过 8 MB'); const signed=await api('/v1/uploads/sign',{method:'POST',body:JSON.stringify({purpose:'announcement_image',content_type:image.type,byte_size:image.size})}); const upload=await fetch(signed.upload_url,{method:signed.method||'PUT',headers:signed.headers||{'Content-Type':image.type},body:image}); if(!upload.ok)throw new Error('通知图片上传失败'); await api('/v1/uploads/complete',{method:'POST',body:JSON.stringify({media_id:signed.media_id})}); payload.image_media_id=signed.media_id; }
     await api(id ? `/v1/admin/announcements/${encodeURIComponent(id)}/edit` : '/v1/admin/announcements', {
       method: 'POST', body: JSON.stringify(payload),
     });
@@ -514,6 +522,7 @@ async function deleteAnnouncement(button) {
 }
 
 app.addEventListener('submit', async (event) => {
+  if (event.target.matches('[data-promotion-form]')) { event.preventDefault(); await uploadPromotion(event.target); }
   if (event.target.matches('[data-password-form]')) {
     event.preventDefault();
     await updatePassword(event.target);
@@ -543,6 +552,13 @@ app.addEventListener('submit', async (event) => {
     await saveAnnouncement(event.target);
   }
 });
+
+async function uploadPromotion(form) {
+  const file = new FormData(form).get('promotion'); const button = form.querySelector('button'); const state = form.querySelector('[data-promotion-state]');
+  if (!(file instanceof File) || !file.size) return;
+  button.disabled = true;
+  try { const signed = await api('/v1/uploads/sign', { method:'POST', body:JSON.stringify({ purpose:'promotion_image', content_type:file.type, byte_size:file.size }) }); const upload = await fetch(signed.upload_url,{ method:signed.method||'PUT',headers:signed.headers||{'Content-Type':file.type},body:file }); if(!upload.ok) throw new Error('宣传图片上传失败'); await api('/v1/uploads/complete',{method:'POST',body:JSON.stringify({media_id:signed.media_id})}); const setting=await api('/v1/admin/site-promotion',{method:'POST',body:JSON.stringify({media_id:signed.media_id})}); promotionUrl=setting.promotion_url; toast('宣传版面已更新'); renderProfile(); } catch(error){button.disabled=false;if(state)state.textContent=error.message;toast(error.message,true);}
+}
 
 app.addEventListener('change', async (event) => {
   if (!event.target.matches('[data-avatar-input]')) return;

@@ -18,7 +18,7 @@ export function setSiteBackground(url = DEFAULT_SITE_BACKGROUND_URL) {
 
 export async function loadSiteBackground({ force = false } = {}) {
   if (!force && backgroundRequest) return backgroundRequest;
-  backgroundRequest = fetch(`${COMMUNITY_CONFIG.apiBaseUrl}/v1/site-settings/background`, {
+  backgroundRequest = fetch(`${COMMUNITY_CONFIG.apiBaseUrl}/v1/site-settings/background?site_id=${encodeURIComponent(COMMUNITY_CONFIG.siteId)}`, {
     headers: { Accept: 'application/json' },
     cache: force ? 'reload' : 'no-cache',
   })
