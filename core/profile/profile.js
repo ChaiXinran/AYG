@@ -422,8 +422,8 @@ async function updatePassword(form) {
 
 async function uploadAvatar(file) {
   const state = document.querySelector('[data-upload-state]');
-  const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
-  if (!allowed.includes(file.type)) return toast('请选择 JPG、PNG、WebP 或 AVIF 图片', true);
+  const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif'];
+  if (!allowed.includes(file.type)) return toast('请选择 JPG、PNG、WebP、AVIF 或 GIF 图片', true);
   if (file.size > 5 * 1024 * 1024) return toast('头像不能超过 5 MB', true);
   if (state) { state.textContent = '正在上传并校验头像…'; state.classList.remove('is-error'); }
   try {
@@ -827,6 +827,7 @@ window.addEventListener('focus', async () => {
   if (!account) return;
   try {
     notificationState = await api('/v1/notifications?limit=100');
-    renderProfile();
+    if (activeTab === 'admin') updateNotificationBadges();
+    else renderProfile();
   } catch { /* keep the current page state when a background refresh fails */ }
 });
