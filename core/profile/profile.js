@@ -268,7 +268,6 @@ function announcementManagementMarkup(items) {
       <label class="is-wide"><span>通知图片或 GIF（可选）</span><input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/avif,image/gif" /></label>
       <button class="community-submit is-wide" type="submit">立即发布 <span>→</span></button>
     </form>
-    <form class="profile-announcement-form is-create" data-admin-announcement-form><label><span>通知标题</span><input name="title" maxlength="200" required></label><label><span>发布对象</span><select name="audience">${announcementAudienceOptions()}</select></label><label class="is-wide"><span>通知内容</span><textarea name="message" maxlength="10000" required rows="6"></textarea></label><label class="is-wide"><span>通知图片或 GIF（可选）</span><input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/avif,image/gif"></label><button class="community-submit is-wide" type="submit">立即发布 <span>→</span></button></form>
     <div class="community-review-heading profile-announcement-history"><h3>已发布通知</h3><span>${items.length} 条</span></div>
     <div class="community-review-list">${items.length ? items.map(announcementCardMarkup).join('') : '<div class="community-empty-inline">当前还没有已发布通知。</div>'}</div>
   </section>`;
