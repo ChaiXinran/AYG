@@ -255,6 +255,16 @@
 .announcement-empty p { margin: 0; font-size: 11px; }
 .announcement-dialog > footer { display: flex; justify-content: flex-end; min-height: 48px; padding: 14px 24px; border-top: 1px solid rgba(130, 193, 214, .11); color: #718c98; font-size: 10px; }
 .announcement-dialog > footer a { color: #9dd6df; text-decoration: none; }
+.announcement-item.is-read { opacity: .68; }
+.announcement-read-choice { display: flex; align-items: center; gap: 9px; margin-top: 15px; padding-top: 13px; border-top: 1px solid rgba(130, 193, 214, .11); color: #b8d4da; font-size: 11px; cursor: pointer; }
+.announcement-read-choice input { width: 16px; height: 16px; accent-color: #66c7b5; }
+.announcement-read-state { justify-content: flex-start !important; margin-top: 14px; color: #79b9a8 !important; }
+.announcement-dialog > footer.announcement-footer { align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.announcement-read-hint { margin-right: auto; }
+.announcement-footer-actions { display: flex; gap: 8px; }
+.announcement-footer-actions button { padding: 8px 12px; border: 1px solid rgba(137, 190, 211, .24); border-radius: 9px; color: #bad2d9; background: rgba(18, 48, 64, .55); cursor: pointer; }
+.announcement-footer-actions button[data-announcement-confirm] { color: #e8fbf6; border-color: rgba(102, 203, 180, .38); background: rgba(31, 103, 91, .55); }
+.announcement-footer-actions button:disabled { opacity: .42; cursor: default; }
 @media (max-width: 760px) {
   .community-panel { top: 8px; right: 8px; bottom: 8px; width: calc(100vw - 16px); border-radius: 18px; }
   .community-layer.is-auth-modal .community-panel { top: 50%; right: auto; bottom: auto; left: 50%; width: calc(100vw - 20px); max-height: calc(100vh - 20px); border-radius: 20px; }

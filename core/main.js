@@ -6,8 +6,9 @@ import { EventTimeline } from './components/timeline/EventTimeline.js';
 import { fillEventLinks } from './components/event-details/eventLinks.js';
 import { NavigationRail } from './components/navigation/NavigationRail.js?v=32';
 import { defaultTourForPerson } from './config/tours.js';
-import { CommunityClient } from './components/community/communityClient.js?v=4';
-import { CommunityPanel } from './components/community/CommunityPanel.js?v=1';
+import { CommunityClient } from './components/community/communityClient.js?v=5';
+import { CommunityPanel } from './components/community/CommunityPanel.js?v=2';
+import { AnnouncementCenter } from './components/community/AnnouncementCenter.js?v=1';
 import { loadEventCatalog } from './data/eventCatalog.js?v=2';
 import { applySiteBackground } from './config/siteBackground.js';
 
@@ -65,6 +66,7 @@ app.innerHTML = `
             </select>
           </label>
           <button id="submissionButton" class="ui-button" type="button">+ 添加活动</button>
+          <button id="notificationButton" class="community-notification-button" type="button" aria-label="查看通知" title="查看通知"><span aria-hidden="true">🔔</span><em hidden>0</em></button>
           <button id="accountButton" class="ui-button" type="button">登录 / 注册</button>
         </div>
       </header>
@@ -150,10 +152,12 @@ app.innerHTML = `
 `;
 
 const card = document.querySelector('#eventCard');
-const community = new CommunityPanel({ client: communityClient, onStateChange: renderAccount });
+const announcementCenter = new AnnouncementCenter({ client: communityClient, button: document.querySelector('#notificationButton') });
+const community = new CommunityPanel({ client: communityClient, onStateChange: (user) => { renderAccount(user); void announcementCenter.refresh(); } });
 community.init().catch((error) => console.warn('社区界面加载失败：', error.message));
 function renderAccount(user = communityClient.user) { const button = document.querySelector('#accountButton'); button.textContent = user ? `${communityClient.access.user_group === 'yunv' ? '☁✦' : '☁'} ${user.display_name || user.user_metadata?.display_name || user.email?.split('@')[0]}` : '登录 / 注册'; }
 renderAccount();
+await announcementCenter.init({ automatic: true });
 document.querySelector('#submissionButton').addEventListener('click', () => { window.location.href = '/submission/'; });
 document.querySelector('#accountButton').addEventListener('click', () => communityClient.user ? window.location.href = '/profile/' : community.open('account'));
 document.querySelector('#eventDiscussionButton').addEventListener('click', () => community.open('discussion'));

@@ -331,6 +331,13 @@ export class CommunityClient {
     return payload.data || { items: [], audience: this.user ? 'registered' : 'guest' };
   }
 
+  async markAnnouncementRead(announcementId) {
+    if (this.mode === 'demo') return { id: announcementId, read_at: new Date().toISOString() };
+    return this.authenticatedRequest(`/v1/announcements/${encodeURIComponent(announcementId)}/read`, {
+      method: 'POST', body: JSON.stringify({}),
+    });
+  }
+
   async unreadNotificationCount() {
     const result = await this.listNotifications(1);
     return Number(result?.unread_count || 0);
@@ -584,7 +591,7 @@ export class CommunityClient {
     if (!event?.communityId) return [];
     const { data: comments, error } = await this.supabase
       .from('comments')
-      .select('id,user_id,parent_id,content,status,created_at,updated_at')
+      .select('id,user_id,parent_id,reply_to_id,content,status,created_at,updated_at')
       .eq('site_id', this.config.siteId)
       .eq('event_id', eventId)
       .order('created_at');
@@ -608,7 +615,7 @@ export class CommunityClient {
     }));
   }
 
-  async addComment(event, content, parentId = null) {
+  async addComment(event, content, parentId = null, replyToId = parentId) {
     if (!this.user) throw new Error('请先登录后再参与讨论');
     this.requireApproved('发表评论');
     if (this.mode === 'demo') {
@@ -619,6 +626,7 @@ export class CommunityClient {
         user_id: this.user.id,
         display_name: this.user.display_name || this.user.email?.split('@')[0] || 'Ran',
         parent_id: parentId,
+        reply_to_id: replyToId,
         content,
         created_at: new Date().toISOString(),
         like_count: 0,
@@ -633,6 +641,7 @@ export class CommunityClient {
       event_id: event.communityId,
       user_id: this.user.id,
       parent_id: parentId,
+      reply_to_id: replyToId,
       content,
     }).select().single();
     if (error) throw error;
@@ -655,7 +664,7 @@ export class CommunityClient {
       .update({ content })
       .eq('id', comment.id)
       .eq('user_id', this.user.id)
-      .select('id,user_id,parent_id,content,status,created_at,updated_at')
+      .select('id,user_id,parent_id,reply_to_id,content,status,created_at,updated_at')
       .single();
     if (error) throw error;
     return data;

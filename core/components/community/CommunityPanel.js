@@ -169,9 +169,7 @@ export class CommunityPanel {
         }
         const requested = this.comments.find((item) => item.id === event.target.closest('[data-comment-id]')?.dataset.commentId);
         if (!requested) return;
-        this.replyTarget = requested.parent_id
-          ? this.comments.find((item) => item.id === requested.parent_id) || requested
-          : requested;
+        this.replyTarget = requested;
         this.editingCommentId = null;
         await this.renderDiscussion();
         this.content.querySelector('.community-composer textarea')?.focus();
@@ -349,6 +347,7 @@ export class CommunityPanel {
     const isOwner = this.client.user?.id === comment.user_id;
     const isDeleted = comment.status === 'deleted';
     const parent = comment.parent_id ? this.comments.find((item) => item.id === comment.parent_id) : null;
+    const replyTo = comment.reply_to_id ? this.comments.find((item) => item.id === comment.reply_to_id) || parent : parent;
     if (this.editingCommentId === comment.id && isOwner && !isDeleted) {
       return `
         <article class="community-comment${comment.parent_id ? ' is-reply' : ''}" data-comment-id="${escapeHtml(comment.id)}">
@@ -363,9 +362,9 @@ export class CommunityPanel {
       <article class="community-comment${comment.parent_id ? ' is-reply' : ''}${isDeleted ? ' is-deleted' : ''}" data-comment-id="${escapeHtml(comment.id)}">
         ${isOwner || !this.client.user ? `<div class="community-avatar">${comment.avatar_url ? `<img src="${escapeHtml(comment.avatar_url)}" alt="" />` : escapeHtml(initials(comment.display_name))}</div>` : `<button class="community-avatar community-avatar-report" type="button" data-action="report-user" data-user-id="${escapeHtml(comment.user_id)}" aria-label="举报${escapeHtml(comment.display_name)}">${comment.avatar_url ? `<img src="${escapeHtml(comment.avatar_url)}" alt="" />` : escapeHtml(initials(comment.display_name))}</button>`}
         <div class="community-comment-body">
-          <div class="community-comment-meta"><strong>${escapeHtml(comment.display_name)}</strong>${parent ? `<span>回复 ${escapeHtml(parent.display_name)}</span>` : ''}<time>${escapeHtml(formatDate(comment.created_at))}${comment.updated_at && comment.updated_at !== comment.created_at ? ' · 已编辑' : ''}</time></div>
+          <div class="community-comment-meta"><strong>${escapeHtml(comment.display_name)}</strong>${replyTo ? `<span>回复 @${escapeHtml(replyTo.display_name)}</span>` : ''}<time>${escapeHtml(formatDate(comment.created_at))}${comment.updated_at && comment.updated_at !== comment.created_at ? ' · 已编辑' : ''}</time></div>
           <p>${escapeHtml(comment.content)}</p>
-          ${isDeleted ? '' : `<div class="community-comment-actions"><button type="button" class="community-like${liked ? ' is-active' : ''}" data-action="like-comment" data-comment-id="${escapeHtml(comment.id)}" aria-label="点赞评论">${liked ? '👍 已赞' : '👍 点赞'} <span>${Number(comment.like_count || 0)}</span></button>${!comment.parent_id ? `<button type="button" data-action="reply-comment" data-comment-id="${escapeHtml(comment.id)}">↩ 回复</button>` : ''}${isOwner ? `<button type="button" data-action="edit-comment" data-comment-id="${escapeHtml(comment.id)}">✎ 编辑</button><button type="button" class="is-danger" data-action="delete-comment" data-comment-id="${escapeHtml(comment.id)}">删除</button>` : this.client.user ? `<button type="button" class="community-report-link" data-action="report-comment" data-comment-id="${escapeHtml(comment.id)}" aria-label="举报评论">⚑</button>` : ''}</div>`}
+          ${isDeleted ? '' : `<div class="community-comment-actions"><button type="button" class="community-like${liked ? ' is-active' : ''}" data-action="like-comment" data-comment-id="${escapeHtml(comment.id)}" aria-label="点赞评论">${liked ? '👍 已赞' : '👍 点赞'} <span>${Number(comment.like_count || 0)}</span></button><button type="button" data-action="reply-comment" data-comment-id="${escapeHtml(comment.id)}">↩ 回复</button>${isOwner ? `<button type="button" data-action="edit-comment" data-comment-id="${escapeHtml(comment.id)}">✎ 编辑</button><button type="button" class="is-danger" data-action="delete-comment" data-comment-id="${escapeHtml(comment.id)}">删除</button>` : this.client.user ? `<button type="button" class="community-report-link" data-action="report-comment" data-comment-id="${escapeHtml(comment.id)}" aria-label="举报评论">⚑</button>` : ''}</div>`}
         </div>
       </article>`;
   }
@@ -392,7 +391,7 @@ export class CommunityPanel {
       <form class="community-composer" data-form="comment">
         <div class="community-avatar is-me">${escapeHtml(initials(name))}</div>
         <div class="community-composer-main">
-          ${this.replyTarget ? `<div class="community-replying-to"><span>回复 ${escapeHtml(this.replyTarget.display_name)}</span><button type="button" data-action="cancel-reply" aria-label="取消回复">×</button></div><input type="hidden" name="parentId" value="${escapeHtml(this.replyTarget.id)}" />` : ''}
+          ${this.replyTarget ? `<div class="community-replying-to"><span>回复 ${escapeHtml(this.replyTarget.display_name)}</span><button type="button" data-action="cancel-reply" aria-label="取消回复">×</button></div><input type="hidden" name="parentId" value="${escapeHtml(this.replyTarget.parent_id || this.replyTarget.id)}" /><input type="hidden" name="replyToId" value="${escapeHtml(this.replyTarget.id)}" />` : ''}
           <textarea name="content" maxlength="2000" rows="3" required placeholder="${this.replyTarget ? `回复 ${escapeHtml(this.replyTarget.display_name)}…` : '写下你对这场活动的记忆或期待…'}"></textarea>
           <div><span>文明交流，共同维护讨论氛围</span><button type="submit">发布</button></div>
         </div>
@@ -1001,9 +1000,10 @@ export class CommunityPanel {
     const input = form.querySelector('textarea[name="content"]');
     const content = input.value.trim();
     const parentId = String(new FormData(form).get('parentId') || '') || null;
+    const replyToId = String(new FormData(form).get('replyToId') || '') || parentId;
     if (!content) return;
     try {
-      await this.client.addComment(this.currentEvent, content, parentId);
+      await this.client.addComment(this.currentEvent, content, parentId, replyToId);
       input.value = '';
       this.replyTarget = null;
       this.toast(parentId ? '回复已发布' : '评论已发布');
